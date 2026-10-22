@@ -10,9 +10,10 @@ for `remote` behavior is `cmd/remote/cli` (help text in `cli.go` and
   run on endpoints without the `mutagen` CLI. Anything that requires `mutagen`
   belongs with the user.
 - Installations update from `main`, so `main` must describe the `remote` of
-  the latest published fork release. Merge changes for unreleased `remote`
-  behavior only once that release is published. Then update the fork's
-  `skills/mutagen-remote` submodule to the new commit.
+  the latest published fork release. Changes for unreleased `remote` behavior
+  go on another branch (such as `next`), whose commit the fork's
+  `skills/mutagen-remote` submodule pins, and are merged into `main` once the
+  fork release that supports them is published.
 - Keep the skill consistent with `remote --help` and the fork's README. When
   `remote` behavior changes (options, exit statuses, working directory
   mapping, synchronization, prologues, or conflicts), update all three.
