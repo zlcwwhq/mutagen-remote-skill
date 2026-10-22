@@ -11,7 +11,8 @@ corresponding directory, and forwards stdio and the exit status. It
 synchronizes before and after the command, so the command sees your edits and
 its changes are present locally when it returns. Use only `remote`: the
 `mutagen` CLI may not be installed where you run, and sessions are the user's
-to manage.
+to manage. If the user asks to set up or change sessions, use the
+`mutagen-setup` skill.
 
 - **Your shell runs first.** Variables, globs, `~`, pipes, and `&&` are
   processed locally, so `remote echo $HOME` prints the local home. Use

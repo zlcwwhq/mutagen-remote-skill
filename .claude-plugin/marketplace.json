@@ -1,6 +1,6 @@
 {
   "name": "mutagen-remote-skill",
-  "description": "The mutagen-remote skill, which teaches coding agents to use the remote executable of the zlcwwhq/mutagen fork.",
+  "description": "The mutagen-remote and mutagen-setup skills, which teach coding agents to use the remote executable of the zlcwwhq/mutagen fork and to set it up.",
   "owner": {
     "name": "zlcwwhq"
   },
@@ -8,7 +8,7 @@
     {
       "name": "mutagen-remote",
       "source": "./",
-      "description": "Teaches coding agents to run commands on the other side of a Mutagen synchronization session with the remote executable, and to resolve conflicts with it."
+      "description": "Teaches coding agents to run commands on the other side of a Mutagen synchronization session with the remote executable and resolve conflicts with it, and to set up Mutagen, its daemon, and a project's sessions."
     }
   ]
 }
