@@ -28,8 +28,9 @@ to manage.
   files, such as `nvidia-smi`. `remote --flush` only synchronizes, such as
   before reading files that a detached job wrote.
 
-`remote --help` lists the options and help topics. Read a reference only when
-you need it:
+`remote --help` lists the options and help topics of the installed `remote`.
+If it lacks an option described here, that `remote` is older than this skill:
+follow its help instead. Read a reference only when you need it:
 
 - [troubleshooting.md](references/troubleshooting.md) if `remote` exits with
   255, 126, or 127, prints a `remote:` error or warning, or doesn't return; if

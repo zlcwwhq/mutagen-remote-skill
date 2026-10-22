@@ -1,0 +1,11 @@
+{
+  "name": "mutagen-remote",
+  "description": "Teaches coding agents to run commands on the other side of a Mutagen synchronization session with the remote executable, and to resolve conflicts with it.",
+  "author": {
+    "name": "zlcwwhq"
+  },
+  "homepage": "https://github.com/zlcwwhq/mutagen-remote-skill",
+  "repository": "https://github.com/zlcwwhq/mutagen-remote-skill",
+  "license": "MIT",
+  "keywords": ["mutagen", "remote", "synchronization"]
+}
