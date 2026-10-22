@@ -27,7 +27,7 @@ what to change.
 | `<dir> is ignored by session X` / `<dir> is inside <dir2>, which session X ignores` (255) | The session containing the directory doesn't synchronize it. Usually it's the root of a nested session that's paused or disconnected (or doesn't run commands from this side); sometimes it's a directory such as a build directory that exists separately on each side | For a nested session, tell the user that it isn't running; don't work around it with `--cwd`, which would run in the enclosing session's unsynchronized copy. Only if the directory is meant to exist separately on the other side, add `--cwd .` |
 | `both endpoints of session ... are on this system` (255) | `--session` used outside both roots of a local session | Run from inside the root you want to submit from |
 | `session ... is no longer connected for remote commands on this system` (255) | The session paused, reconnected, or was terminated after `remote` located it; `remote` doesn't switch to another session midway | Retry after a few seconds; if it persists, tell the user |
-| `the connection to the executing endpoint was lost ...` (255) | The session stopped synchronizing while the command ran (paused, reconnecting, replaced, or the daemon stopped), so the command was terminated: SIGTERM, then SIGKILL 5 seconds later | Files that it was writing may be incomplete. Once `remote --flush` succeeds, check them and rerun the command; detach long jobs. If it recurs, tell the user |
+| `the connection to the executing endpoint was lost ...` (255) | The session stopped synchronizing while the command ran (paused, reconnecting, replaced, or the daemon stopped), so the command was terminated: SIGTERM, then SIGKILL 5 seconds later | Files that it was writing may be incomplete. Once `remote --flush` succeeds, check them and rerun the command; run long commands with `--detach`. If it recurs, tell the user |
 | `registered by Mutagen X, but this is Mutagen Y` (255) | `remote` from a different Mutagen version, such as a `PATH` entry for an older agent after an upgrade | Use the `remote` installed with version X (on SSH and Docker endpoints, `~/.mutagen/agents/X/remote`); tell the user that the `mutagen-setup` skill installs a `remote` that follows upgrades |
 | `warning: sessions X and Y both synchronize the current directory; using X` | Several sessions synchronize the directory, such as one directory synced to several machines, or nested roots; `remote` used the most specific root, then the session created first | Nothing, if X is the intended session (ask the user if unsure); otherwise add `-s <session>` with a session from the warning. `remote --sessions` shows their roots |
 | `warning: unable to synchronize before/after the command` | The session stopped synchronizing during a flush, or `--timeout` expired | The command still ran; retry with `remote --flush`, and tell the user if it keeps failing |
@@ -38,6 +38,17 @@ what to change.
 | `unable to access working directory` (126) | The corresponding directory doesn't exist remotely | See "Conflicts and unsynchronized content", or use `--cwd` |
 | `is checked out through the opposite endpoint` (255) | The conflict was checked out from the other side, which alone can apply or discard it | Leave it and its paths alone; if it seems abandoned, ask the user to discard it on that side (`remote --conflict-discard <path>`) |
 | `is already checked out in <dir>` (255) | The conflict has a workspace on this side, which may be another agent's or the user's resolution in progress | If you checked it out, do what the message says; otherwise leave it, or ask the user |
+| `no job <id> exists on this endpoint` (255) | Wrong ID, or the job ended more than 7 days ago | `remote --jobs` lists the jobs |
+| `job <id> was started at another synchronization root` (255) | The job belongs to another session's root on that system | Run from inside that session's root, or select it with `-s` |
+| `job <id> ended without recording its exit status` (255 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
+| `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected | Wait again, or `remote --kill <id>` |
+| `--timeout can't be combined with --detach` (255) | `--detach` returns as soon as the job starts | Limit the job itself: `remote --detach timeout 2h python train.py` |
+| `unable to open log` (126) | `--log`'s directory doesn't exist on the other side | Create it, or choose another path |
+| `unable to find the script's interpreter` (127) | Scripts without a `#!` line run with bash, which isn't on the other side's `PATH`, or the `#!` interpreter is missing | Add `#!/bin/sh` for POSIX scripts, or fix `PATH` (see "Commands missing from the remote environment") |
+| `the script exceeds the size limit` (255) | `--script` takes at most 512 KiB | Save the script in the synced tree and run `remote bash <path>` |
+| `unable to pull <path>: the session synchronizes it` (255) | `--pull` only copies ignored paths; synchronized ones arrive through synchronization | `remote --flush`; if the file is still missing, check for a conflict or problem warning |
+| `... synchronizes some content beneath it, so remote doesn't pull it as a whole` (255) | The directory is ignored, but some content beneath it is unignored and synchronized | Pull the ignored files or directories beneath it instead |
+| `... aren't supported on Windows endpoints` (126) | Detached jobs and scripts need a POSIX system on the executing side | Run commands, such as `remote powershell -Command ...`, instead |
 
 Statuses 128+N mean that the remote command was killed by signal N.
 
@@ -102,11 +113,20 @@ with paths relative to the current directory:
   side if you can, or tell the user.
 
 Ignored paths are never synchronized and aren't reported; if a file is missing
-remotely without a warning, it's probably ignored (tell the user).
+on one side without a warning, it's probably ignored. `remote --ignores` lists
+the session's ignores, and `remote --ignores <path>...` checks paths (exit
+status 1 if any is ignored). `remote --pull <path>...` copies ignored files,
+directories, or symbolic links from the other side, replacing local files that
+differ but never deleting local ones; read single files with `remote cat` if
+you don't need a local copy. If outputs that the user wants locally are
+ignored, tell the user, who may want to stop ignoring them.
 
-Each flush rescans both roots, which can take seconds for very large trees. Use
-`--no-flush` for commands that don't depend on recent edits, and suggest that
-the user ignore large generated directories in the session.
+Each flush rescans both roots. An idle flush took about 0.02 seconds for 900
+files and 0.2 seconds for 50,000 files on a local session, plus a few network
+round trips over SSH, and longer for very large trees. That cost is small
+compared to running outdated code, so use `--no-flush` only for commands that
+read and write no synchronized files, never right after editing files, and
+suggest that the user ignore large generated directories in the session.
 
 For a session that synchronizes a single file, run `remote -s <name-or-id>
 --diff` from outside its root, or pass the local file's absolute path after
@@ -175,17 +195,86 @@ paths inside the script use the command's working directory. `--no-prologue`
 skips both workspace and configured scripts, as does submission from outside
 the root with `--session`. Prologues aren't supported on Windows endpoints.
 
-## Long-running commands and commands that don't return
+## Detached jobs
 
-- A background process still holds stdout or stderr: redirect all output and
-  stdin when detaching (`> log 2>&1 < /dev/null &`).
+Run anything that takes long, or that must survive the session reconnecting, as
+a detached job:
+
+```sh
+id=$(remote --detach --log train.log python train.py)   # prints only the ID
+remote --jobs                  # state, running time, log, and command
+remote tail -n 40 train.log    # progress
+remote --wait "$id"            # waits, synchronizes, exits with its status
+remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
+```
+
+- Jobs run where commands would, with the prologue and environment options,
+  but without input. `--log` is relative to the command's directory; without
+  it, the log is in the other side's Mutagen data directory, at the path that
+  `--jobs` shows (read it with `remote tail <path>`). `remote` warns if the
+  log is ignored, and so not synchronized.
+- `remote --wait "$id" --timeout 10m` bounds the wait (exit 124) without
+  stopping the job. If the connection is lost while waiting, `remote` retries
+  for a minute. `--wait` synchronizes afterwards, so the job's outputs are
+  local when it returns.
+- A job is `lost` if it ended without recording its status. Jobs end with the
+  machine or container that runs them, and service managers can end them too:
+  stopping a Mutagen daemon that runs as a systemd service ends the jobs that
+  it runs on its own machine, and logind's `KillUserProcesses` ends jobs on SSH
+  hosts when the SSH connection closes. If jobs end early this way, tell the
+  user.
+- `--detach` works with `--script -` for multi-line jobs. Job state is kept for
+  7 days after a job ends; `--jobs` only lists jobs started at the session's
+  root.
+
+## Scripts and quoting
+
+`remote --script - <<'EOF'` followed by lines of code and `EOF` runs the code
+on the other side exactly as written: the quoted delimiter keeps your shell
+from expanding anything. Without a `#!` line the script runs with bash;
+`#!/bin/sh`, `#!/usr/bin/env python3`, and similar lines select the
+interpreter. Arguments after `-` (or after a local script file given instead of
+`-`) are the script's, even ones that look like options. `$0` is a temporary
+copy, so `$(dirname "$0")` doesn't find the script's siblings: run scripts that
+are in the synced tree with `remote bash <path>` instead. With `-`, the
+script's commands get no input. `remote bash -s <<'EOF'` also works for
+foreground scripts, but commands in it that read input consume the rest of
+the script, and it can't run detached.
+
+## Commands that don't return
+
 - The command is waiting for input: `remote` forwards stdin, so pass
   `< /dev/null` or use the program's non-interactive flags.
+- A background process still holds stdout or stderr: `remote` waits for every
+  process holding its output. Use `--detach` instead of starting background
+  processes.
 - Use `--timeout` to bound commands that might hang (in seconds, or with a
   unit such as `10m`); it exits with 124 and terminates the remote process
   group (SIGTERM, then SIGKILL 5 seconds later), without synchronizing
   afterwards.
 - Commands are also terminated when the session stops synchronizing (see the
-  lost connection above), but detached jobs keep running. Files that they
-  write arrive through normal synchronization; run `remote --flush` before
-  reading them locally.
+  lost connection above), but detached jobs keep running.
+
+## Git on the other side
+
+Mutagen doesn't synchronize modification times, so when `.git` is synchronized
+(the session doesn't set `ignore.vcs`), the index never matches the other
+side's files. Git commands that refresh the index then rewrite `.git/index`,
+which synchronizes back, where local Git rewrites it again; rewrites on both
+sides at once, such as by an editor's background `git status`, conflict. With
+Git 2.53:
+
+- `git status`, `git diff`, and `git describe --dirty` rewrite the index.
+  `GIT_OPTIONAL_LOCKS=0` (or `git --no-optional-locks`) prevents it for
+  `git status` only.
+- `git rev-parse`, `git log`, and `git describe` without `--dirty` don't.
+
+Compute Git state locally and pass it in, where local expansion is what you
+want: `remote -e GIT_REV="$(git describe --always --dirty)" python train.py`.
+If code on the other side must check for changes itself (such as experiment
+tracking that records the revision), use
+`GIT_OPTIONAL_LOCKS=0 git status --porcelain --untracked-files=no`, which is
+empty for a clean tree, rather than `git describe --dirty`, for example by
+exporting `GIT_OPTIONAL_LOCKS=0` in the prologue. Tools that run Git
+internally, such as setuptools-scm, may still rewrite the index. If the other
+side doesn't need the repository, suggest that the user set `ignore.vcs: true`.

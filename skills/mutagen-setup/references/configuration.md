@@ -34,10 +34,16 @@ commands.
 `/name` only at the root, a trailing `/` matches directories only, `*` and `**`
 are wildcards, and `!pattern` re-includes. `ignore.vcs: true` ignores `.git`,
 `.svn`, `.hg`, `.bzr`, and `_darcs`; omit it if beta needs the repository, and
-then avoid running Git commands that write on beta. Ignored paths aren't
-synchronized and keep a separate copy on each side, which suits per-system
-build directories and virtual environments; `remote` refuses to run in them
-unless given `--cwd .`.
+then avoid running Git commands that write on beta. These include `git status`,
+`git diff`, and `git describe --dirty`: Mutagen doesn't synchronize
+modification times, so they rewrite `.git/index` to match beta's files, the
+rewritten index synchronizes back, and concurrent rewrites on both sides
+conflict (`GIT_OPTIONAL_LOCKS=0` prevents this for `git status` only).
+
+Ignored paths aren't synchronized and keep a separate copy on each side, which
+suits per-system build directories and virtual environments; `remote` refuses
+to run in them unless given `--cwd .`, and `remote --pull` copies ignored
+content from the other side on request.
 
 Common candidates: `.venv/`, `node_modules/`, `__pycache__/`, `*.pyc`,
 `.pytest_cache/`, `.mypy_cache/`, `build/`, `dist/`, `.DS_Store`, and large
