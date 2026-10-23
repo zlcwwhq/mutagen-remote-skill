@@ -150,31 +150,51 @@ temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT
 trap 'exit 1' HUP INT TERM
 
-echo "Downloading $asset..."
 if [ -t 2 ]; then progress=--progress-bar; else progress=-sS; fi
-curl -fL "$progress" -o "$temporary/$asset" "$download/$asset" ||
-	die "unable to download $download/$asset"
 curl -fsSL -o "$temporary/SHA256SUMS" "$download/SHA256SUMS" ||
 	die "unable to download $download/SHA256SUMS"
 
-expected=$(awk -v name="$asset" '$2 == name || $2 == "*" name { print $1 }' "$temporary/SHA256SUMS")
-[ -n "$expected" ] || die "$asset isn't listed in SHA256SUMS"
-if command -v sha256sum >/dev/null 2>&1; then
-	actual=$(sha256sum "$temporary/$asset" | cut -d ' ' -f 1)
-else
-	actual=$(shasum -a 256 "$temporary/$asset" | cut -d ' ' -f 1)
-fi
-[ "$actual" = "$expected" ] || die "checksum mismatch for $asset"
+# Print the checksum that SHA256SUMS lists for a file, if any.
+listed() {
+	awk -v name="$1" '$2 == name || $2 == "*" name { print $1 }' "$temporary/SHA256SUMS"
+}
 
+# Download a release file and verify its checksum.
+fetch() {
+	echo "Downloading $1..."
+	curl -fL "$progress" -o "$temporary/$1" "$download/$1" ||
+		die "unable to download $download/$1"
+	expected=$(listed "$1")
+	[ -n "$expected" ] || die "$1 isn't listed in SHA256SUMS"
+	if command -v sha256sum >/dev/null 2>&1; then
+		actual=$(sha256sum "$temporary/$1" | cut -d ' ' -f 1)
+	else
+		actual=$(shasum -a 256 "$temporary/$1" | cut -d ' ' -f 1)
+	fi
+	[ "$actual" = "$expected" ] || die "checksum mismatch for $1"
+}
+
+fetch "$asset"
 mkdir "$temporary/bundle"
 tar -xzf "$temporary/$asset" -C "$temporary/bundle"
-for file in mutagen remote mutagen-agents.tar.gz; do
+for file in mutagen remote; do
 	[ -f "$temporary/bundle/$file" ] || die "$asset lacks $file"
 done
 reported=$("$temporary/bundle/mutagen" version) ||
 	die "the downloaded mutagen doesn't run on this system"
 [ "$reported" = "$version" ] ||
 	die "the downloaded mutagen reports version $reported, not $version"
+
+# Releases after v0.19.0-zlcwwhq.0.0.7 publish the agent bundle once, rather
+# than in each platform's bundle.
+agents=mutagen-agents_$tag.tar.gz
+if [ -n "$(listed "$agents")" ]; then
+	fetch "$agents"
+	agents=$temporary/$agents
+else
+	agents=$temporary/bundle/mutagen-agents.tar.gz
+	[ -f "$agents" ] || die "$asset lacks mutagen-agents.tar.gz"
+fi
 
 { mkdir -p "$bindir" "$bundledir" && [ -w "$bindir" ] && [ -w "$bundledir" ]; } 2>/dev/null ||
 	die "unable to write to $bindir and $bundledir; use sudo or another --prefix"
@@ -205,7 +225,7 @@ place() {
 	chmod "$3" "$2.$$"
 	mv -f "$2.$$" "$2"
 }
-place "$temporary/bundle/mutagen-agents.tar.gz" "$bundledir/mutagen-agents.tar.gz" 644
+place "$agents" "$bundledir/mutagen-agents.tar.gz" 644
 place "$temporary/bundle/remote" "$bindir/remote" 755
 place "$temporary/bundle/mutagen" "$bindir/mutagen" 755
 echo "Installed Mutagen $version: $bindir/mutagen, $bindir/remote, $bundledir/mutagen-agents.tar.gz"
