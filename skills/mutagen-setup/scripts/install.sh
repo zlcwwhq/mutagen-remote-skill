@@ -115,6 +115,18 @@ v*-zlcwwhq.*) ;;
 esac
 version=${tag#v}
 
+# Agent bundles record their version in their first entry, version, from
+# v0.19.0-zlcwwhq.0.0.9 on, and mutagen refuses those of other versions.
+case $version in
+*-zlcwwhq.0.0.[1-8]) records=no ;;
+*) records=yes ;;
+esac
+
+# Print the version that an agent bundle records, if any.
+recorded() {
+	tar -xzOf "$1" version 2>/dev/null || :
+}
+
 installed=
 if [ -x "$bindir/mutagen" ]; then
 	installed=$("$bindir/mutagen" version 2>/dev/null) || installed=unknown
@@ -124,7 +136,8 @@ if [ -z "$installed" ]; then
 elif [ "$installed" != "$version" ]; then
 	status="update available ($installed -> $version)"
 elif ! [ -f "$bundledir/mutagen-agents.tar.gz" ] ||
-	[ "$("$bindir/remote" --version 2>/dev/null)" != "$version" ]; then
+	[ "$("$bindir/remote" --version 2>/dev/null)" != "$version" ] ||
+	{ [ "$records" = yes ] && [ "$(recorded "$bundledir/mutagen-agents.tar.gz")" != "$version" ]; }; then
 	status="incomplete (remote or the agent bundle is missing or of another version)"
 else
 	status="up to date"
@@ -194,6 +207,9 @@ if [ -n "$(listed "$agents")" ]; then
 else
 	agents=$temporary/bundle/mutagen-agents.tar.gz
 	[ -f "$agents" ] || die "$asset lacks mutagen-agents.tar.gz"
+fi
+if [ "$records" = yes ] && [ "$(recorded "$agents")" != "$version" ]; then
+	die "the agent bundle of $tag doesn't record version $version"
 fi
 
 { mkdir -p "$bindir" "$bundledir" && [ -w "$bindir" ] && [ -w "$bundledir" ]; } 2>/dev/null ||

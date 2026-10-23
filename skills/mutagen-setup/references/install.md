@@ -3,13 +3,17 @@
 Releases at <https://github.com/zlcwwhq/mutagen/releases> are tagged
 `v0.19.0-zlcwwhq.X.Y.Z`. Each platform's bundle,
 `mutagen_<os>_<arch>_<tag>.tar.gz` (and `.zip` for Windows), contains
-`mutagen` and `remote`, and is about 7 MB. The agent bundle, which `mutagen`
+`mutagen` and `remote`, and is about 9 MB. The agent bundle, which `mutagen`
 needs to install agents on endpoints, covers every endpoint platform, so it's
 released once, as `mutagen-agents_<tag>.tar.gz` (about 120 MB). It's installed
 as `mutagen-agents.tar.gz`, which `mutagen` looks for in its own directory, or
 in `../libexec` if it's in a `bin` directory. Releases up to
 `v0.19.0-zlcwwhq.0.0.7` include `mutagen-agents.tar.gz` in each bundle
 instead. `SHA256SUMS` lists the checksums of all of them.
+
+From `v0.19.0-zlcwwhq.0.0.9` on, the agent bundle's `version` entry records
+its release, and `mutagen` refuses to install agents from another release's
+agent bundle ("unusable agent bundle"), so upgrade both together.
 
 Only the daemon's system needs an installation. Endpoints get agents, which
 also act as `remote` there, from the daemon when sessions connect.
@@ -44,13 +48,15 @@ installs into `~/.local` (or `DIR`): `bin/mutagen`, `bin/remote`, and
 `libexec/mutagen-agents.tar.gz`. It does nothing if that release is already
 installed completely, and `--check` only reports what it would do.
 
-It downloads the agent bundle with the platform's bundle, from either layout,
-and verifies their checksums and that the binary runs and reports the
-release's version before changing anything, then replaces files by renaming. With
-`--restart-daemon`, it stops the daemon (or the systemd user service) after the
-download and starts it again until the new version answers. It warns if `bin`
-isn't on `PATH`, if other `mutagen` or `remote` executables precede it, or if
-an old agent bundle sits in `bin`. For a system-wide installation, use
+It downloads the agent bundle with the platform's bundle, from either layout.
+Before changing anything, it verifies their checksums, that the binary runs and
+reports the release's version, and that the agent bundle records it, then it
+replaces files by renaming. An installation whose agent bundle records another
+version counts as incomplete and is reinstalled. With `--restart-daemon`, it
+stops the daemon (or the systemd user service) after the download and starts it
+again until the new version answers. It warns if `bin` isn't on `PATH`, if
+other `mutagen` or `remote` executables precede it, or if an old agent bundle
+sits in `bin`. For a system-wide installation, use
 `--prefix /usr/local` with `sudo`, and restart the daemon as the user.
 
 If `bin` isn't on `PATH`, add it in the user's shell profile with the user's
