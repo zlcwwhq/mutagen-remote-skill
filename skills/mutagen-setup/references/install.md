@@ -3,11 +3,13 @@
 Releases at <https://github.com/zlcwwhq/mutagen/releases> are tagged
 `v0.19.0-zlcwwhq.X.Y.Z`. Each platform's bundle,
 `mutagen_<os>_<arch>_<tag>.tar.gz` (and `.zip` for Windows), contains
-`mutagen`, `remote`, and `mutagen-agents.tar.gz`, which `mutagen` needs to
-install agents on endpoints: it looks for it in its own directory, or in
-`../libexec` if it's in a `bin` directory. `SHA256SUMS` lists the bundles'
-checksums. Bundles are about 130 MB, because the agent bundle covers every
-endpoint platform.
+`mutagen` and `remote`, and is about 7 MB. The agent bundle, which `mutagen`
+needs to install agents on endpoints, covers every endpoint platform, so it's
+released once, as `mutagen-agents_<tag>.tar.gz` (about 120 MB). It's installed
+as `mutagen-agents.tar.gz`, which `mutagen` looks for in its own directory, or
+in `../libexec` if it's in a `bin` directory. Releases up to
+`v0.19.0-zlcwwhq.0.0.7` include `mutagen-agents.tar.gz` in each bundle
+instead. `SHA256SUMS` lists the checksums of all of them.
 
 Only the daemon's system needs an installation. Endpoints get agents, which
 also act as `remote` there, from the daemon when sessions connect.
@@ -42,8 +44,9 @@ installs into `~/.local` (or `DIR`): `bin/mutagen`, `bin/remote`, and
 `libexec/mutagen-agents.tar.gz`. It does nothing if that release is already
 installed completely, and `--check` only reports what it would do.
 
-It verifies the checksum and that the binary runs and reports the release's
-version before changing anything, then replaces files by renaming. With
+It downloads the agent bundle with the platform's bundle, from either layout,
+and verifies their checksums and that the binary runs and reports the
+release's version before changing anything, then replaces files by renaming. With
 `--restart-daemon`, it stops the daemon (or the systemd user service) after the
 download and starts it again until the new version answers. It warns if `bin`
 isn't on `PATH`, if other `mutagen` or `remote` executables precede it, or if
@@ -58,22 +61,29 @@ agreement, such as `export PATH="$HOME/.local/bin:$PATH"` in `~/.profile`
 
 ## Windows
 
-Install the `.zip` bundle with PowerShell. All three files stay in one
-directory, which goes on the user's `PATH`:
+Install the `.zip` bundle and the agent bundle with PowerShell. All three
+files stay in one directory, which goes on the user's `PATH`:
 
 ```powershell
 $repository = 'zlcwwhq/mutagen'
 $tag = (Invoke-RestMethod "https://api.github.com/repos/$repository/releases/latest").tag_name
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
 $asset = "mutagen_windows_${arch}_$tag.zip"
+$agents = "mutagen-agents_$tag.tar.gz"
 $download = "https://github.com/$repository/releases/download/$tag"
 $temporary = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "mutagen-$tag") -Force
-Invoke-WebRequest "$download/$asset" -OutFile "$temporary\$asset"
 Invoke-WebRequest "$download/SHA256SUMS" -OutFile "$temporary\SHA256SUMS"
-$expected = ((Get-Content "$temporary\SHA256SUMS") -match "  $([regex]::Escape($asset))$" -split ' ')[0]
-if (-not $expected -or (Get-FileHash "$temporary\$asset" -Algorithm SHA256).Hash -ne $expected) { throw "checksum mismatch for $asset" }
+$sums = Get-Content "$temporary\SHA256SUMS"
+$files = @($asset)
+if ($sums -match "  $([regex]::Escape($agents))$") { $files += $agents }  # not in releases up to 0.0.7
+foreach ($file in $files) {
+    Invoke-WebRequest "$download/$file" -OutFile "$temporary\$file"
+    $expected = (($sums -match "  $([regex]::Escape($file))$") -split ' ')[0]
+    if (-not $expected -or (Get-FileHash "$temporary\$file" -Algorithm SHA256).Hash -ne $expected) { throw "checksum mismatch for $file" }
+}
 $directory = "$env:LOCALAPPDATA\Programs\Mutagen"
 Expand-Archive "$temporary\$asset" -DestinationPath $directory -Force
+if ($files -contains $agents) { Copy-Item "$temporary\$agents" "$directory\mutagen-agents.tar.gz" -Force }
 Remove-Item -Recurse $temporary
 $path = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($path -split ';') -notcontains $directory) {
