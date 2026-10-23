@@ -10,7 +10,8 @@ usually the user's machine, which is then alpha. Run everything there unless
 noted. Sessions are the user's: confirm the plan before creating, replacing, or
 terminating sessions, and before stopping the daemon, which stops every
 session's synchronization and terminates running `remote` commands (detached
-jobs keep running).
+jobs keep running, except jobs on the daemon's system when the daemon runs as a
+systemd service).
 
 Installing, the daemon, and SSH need network access and write outside the
 project (such as to `~/.local` and `~/.mutagen`), so in a sandbox, such as
@@ -164,7 +165,8 @@ When the user asks to upgrade, or `--check` reports `update available`:
 1. Tell the user what the release changes (`gh release view <tag> -R
    zlcwwhq/mutagen`, or its page) and that the daemon restarts: synchronization
    pauses for a moment, and running `remote` commands are terminated (detached
-   jobs keep running). Get their consent, preferably once running commands have
+   jobs keep running, except jobs on the daemon's system when the daemon runs as
+   a systemd service). Get their consent, preferably once running commands have
    finished. Don't install an older release unless asked (`--version <tag>`).
 2. Run `sh <skill-directory>/scripts/install.sh --restart-daemon`. It downloads
    and verifies the release first, then stops the daemon (or the systemd user
