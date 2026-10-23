@@ -43,12 +43,13 @@ what to change.
 | `job <id> ended without recording its exit status` (255 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
 | `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected | Wait again, or `remote --kill <id>` |
 | `--timeout can't be combined with --detach` (255) | `--detach` returns as soon as the job starts | Limit the job itself: `remote --detach timeout 2h python train.py` |
-| `unable to open log` (126) | `--log`'s directory doesn't exist on the other side | Create it, or choose another path |
+| `unable to open log` (126) | `--log`'s directory doesn't exist on the other side, or the log is a FIFO, socket, or directory rather than a regular file or character device | Create the directory, or choose another path, such as a regular file or `/dev/null` |
 | `unable to find the script's interpreter` (127) | Scripts without a `#!` line run with bash, which isn't on the other side's `PATH`, or the `#!` interpreter is missing | Add `#!/bin/sh` for POSIX scripts, or fix `PATH` (see "Commands missing from the remote environment") |
 | `the script exceeds the size limit` (255) | `--script` takes at most 512 KiB | Save the script in the synced tree and run `remote bash <path>` |
 | `unable to pull <path>: the session synchronizes it` (255) | `--pull` only copies ignored paths; synchronized ones arrive through synchronization | `remote --flush`; if the file is still missing, check for a conflict or problem warning |
 | `... synchronizes some content beneath it, so remote doesn't pull it as a whole` (255) | The directory is ignored, but some content beneath it is unignored and synchronized | Pull the ignored files or directories beneath it instead |
 | `... resolves to <path> through a symbolic link, and the session synchronizes that` (255) | An ignored local symbolic link among the path's parents leads into synchronized content, which `--pull` doesn't overwrite | Read the file with `remote cat`, or tell the user; `remote --ignores <path>` shows `synchronized as <path>` |
+| `... synchronized by <session>, so remote doesn't write it` / `doesn't create it` (255) | Another session on this machine synchronizes the path, or a missing parent of it, so that session updates it | Leave it to that session, or read the remote copy with `remote cat`; tell the user if that session lacks the content |
 | `... in only some Unicode normalization forms of its path and may synchronize it` (255) | An ignore pattern spells an accented name in only one Unicode normalization form, so the session may synchronize the name | Read it with `remote cat`, or ask the user to make the pattern match both forms, such as `caf*.txt` |
 | `... aren't supported on Windows endpoints` / `... on Windows or AIX endpoints` (126) | Scripts need a POSIX system on the executing side, and detached jobs one other than AIX | Run commands instead, such as `remote powershell -Command ...` on Windows; on AIX, run long commands in the foreground |
 
@@ -122,7 +123,10 @@ status 1 if any is ignored); `possibly synchronized` and `synchronized as
 path, so `--pull` refuses it. `remote --pull <path>...` copies ignored files,
 directories, or symbolic links from the other side, replacing local files that
 differ but never deleting local ones; read single files with `remote cat` if
-you don't need a local copy. If outputs that the user wants locally are
+you don't need a local copy. It also refuses paths that another session on
+this machine synchronizes, but it only knows sessions that are connected and
+run by this version of Mutagen or a later one, so don't pull into another
+project's synchronized directories. If outputs that the user wants locally are
 ignored, tell the user, who may want to stop ignoring them.
 
 Each flush rescans both roots. An idle flush took about 0.02 seconds for 900
@@ -216,10 +220,20 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
   but without input. `--log` is relative to the command's directory; without
   it, the log is in the other side's Mutagen data directory, at the path that
   `--jobs` shows (read it with `remote tail <path>`). `remote` warns if the
-  log is ignored, and so not synchronized.
+  log is ignored, and so not synchronized. The log must be a regular file or
+  a character device such as `/dev/null`, not a FIFO.
 - `remote --kill` returns once every process in the job's process group has
   exited. Processes still running 5 seconds after SIGTERM, such as workers
-  that ignore it, get SIGKILL; the status shown is the command's.
+  that ignore it, get SIGKILL; the status shown is the command's. Interrupting
+  `remote --kill` doesn't cut that short, and repeating it doesn't send
+  SIGTERM again.
+- A job ends when its command exits. Processes that the command leaves running
+  in the background aren't part of the job afterwards: `--wait` doesn't wait
+  for them and `--kill` doesn't terminate them. So have job scripts `wait` for
+  the background processes they start. On Linux, `--jobs`, `--wait`, and
+  `--kill` list those left running (`left running: <pid> <command>`), which
+  `remote -- kill <pid>...` terminates; elsewhere, they only say that the
+  job's process group may still have processes.
 - `remote --wait "$id" --timeout 10m` bounds the wait (exit 124) without
   stopping the job. If the connection is lost while waiting, `remote` retries
   for a minute. `--wait` synchronizes afterwards, so the job's outputs are

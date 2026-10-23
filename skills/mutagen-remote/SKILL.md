@@ -27,7 +27,8 @@ to manage. If the user asks to set up or change sessions, use the
   reconnecting, and prints its ID. `remote --wait "$id"` blocks until it ends,
   synchronizes, and exits with its status; `remote --jobs` lists jobs, and
   `remote --kill "$id"` stops one. `--detach` also takes `--script -`. Don't
-  hand-roll `nohup ... &` or polling loops.
+  hand-roll `nohup ... &` or polling loops, and have job scripts `wait` for
+  any background processes they start: a job ends when its command exits.
 - **Keep the default synchronization.** A skipped flush silently runs outdated
   code, while an extra one only costs a rescan (well under a second for most
   trees). Use `--no-flush` only for commands that read and write no synced
