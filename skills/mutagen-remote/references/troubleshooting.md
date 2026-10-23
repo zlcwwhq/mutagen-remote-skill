@@ -48,7 +48,9 @@ what to change.
 | `the script exceeds the size limit` (255) | `--script` takes at most 512 KiB | Save the script in the synced tree and run `remote bash <path>` |
 | `unable to pull <path>: the session synchronizes it` (255) | `--pull` only copies ignored paths; synchronized ones arrive through synchronization | `remote --flush`; if the file is still missing, check for a conflict or problem warning |
 | `... synchronizes some content beneath it, so remote doesn't pull it as a whole` (255) | The directory is ignored, but some content beneath it is unignored and synchronized | Pull the ignored files or directories beneath it instead |
-| `... aren't supported on Windows endpoints` (126) | Detached jobs and scripts need a POSIX system on the executing side | Run commands, such as `remote powershell -Command ...`, instead |
+| `... resolves to <path> through a symbolic link, and the session synchronizes that` (255) | An ignored local symbolic link among the path's parents leads into synchronized content, which `--pull` doesn't overwrite | Read the file with `remote cat`, or tell the user; `remote --ignores <path>` shows `synchronized as <path>` |
+| `... in only some Unicode normalization forms of its path and may synchronize it` (255) | An ignore pattern spells an accented name in only one Unicode normalization form, so the session may synchronize the name | Read it with `remote cat`, or ask the user to make the pattern match both forms, such as `caf*.txt` |
+| `... aren't supported on Windows endpoints` / `... on Windows or AIX endpoints` (126) | Scripts need a POSIX system on the executing side, and detached jobs one other than AIX | Run commands instead, such as `remote powershell -Command ...` on Windows; on AIX, run long commands in the foreground |
 
 Statuses 128+N mean that the remote command was killed by signal N.
 
@@ -115,7 +117,9 @@ with paths relative to the current directory:
 Ignored paths are never synchronized and aren't reported; if a file is missing
 on one side without a warning, it's probably ignored. `remote --ignores` lists
 the session's ignores, and `remote --ignores <path>...` checks paths (exit
-status 1 if any is ignored). `remote --pull <path>...` copies ignored files,
+status 1 if any is ignored); `possibly synchronized` and `synchronized as
+<path> (through a symbolic link)` mean that the session may synchronize the
+path, so `--pull` refuses it. `remote --pull <path>...` copies ignored files,
 directories, or symbolic links from the other side, replacing local files that
 differ but never deleting local ones; read single files with `remote cat` if
 you don't need a local copy. If outputs that the user wants locally are
@@ -213,6 +217,9 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
   it, the log is in the other side's Mutagen data directory, at the path that
   `--jobs` shows (read it with `remote tail <path>`). `remote` warns if the
   log is ignored, and so not synchronized.
+- `remote --kill` returns once every process in the job's process group has
+  exited. Processes still running 5 seconds after SIGTERM, such as workers
+  that ignore it, get SIGKILL; the status shown is the command's.
 - `remote --wait "$id" --timeout 10m` bounds the wait (exit 124) without
   stopping the job. If the connection is lost while waiting, `remote` retries
   for a minute. `--wait` synchronizes afterwards, so the job's outputs are
