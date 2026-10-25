@@ -1,5 +1,8 @@
 # Resolving conflicts
 
+`remote --help conflicts` gives the short workflow;
+`remote --help conflict-details` covers merging, backups, and recovery.
+
 `remote` resolves conflicts in sessions using the two-way-safe (the default) or
 one-way-safe synchronization mode. For conflicts that it can't resolve, see
 "Conflicts and unsynchronized content" in

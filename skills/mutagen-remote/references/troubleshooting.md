@@ -19,12 +19,12 @@ what to change.
 
 | Message | Cause | Fix |
 | --- | --- | --- |
-| `no connected session with remote commands enabled contains <dir>` (255) | Outside every synced root, or the session is paused, disconnected, or doesn't execute commands on the other side (they can be enabled in one direction only) | `cd` into the synced directory (`remote --sessions` lists the connected sessions' roots); otherwise tell the user |
+| `no connected session with remote commands enabled contains <dir>` (255) | Outside every synced root, or the session is paused, disconnected, or doesn't execute commands on the other side (they can be enabled in one direction only) | `cd` into the synced directory (`remote --sessions` lists local roots, execution hosts/roots, and mapped working directories); otherwise tell the user |
 | `unable to connect to session ...: dial unix ...: connect: operation not permitted` (255) | A sandbox around your commands blocks Unix sockets, such as Codex's `workspace-write` sandbox without network access | Request to run `remote` outside the sandbox, or ask the user to allow it (for Codex, `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`) |
 | `<alpha\|beta> is not connected for remote commands` (255) | Session just started or is reconnecting | Retry after a few seconds; if it persists, tell the user |
 | `multiple sessions match ...` (255) | The name given with `-s` or `MUTAGEN_REMOTE_SESSION` is shared by the sessions listed in the message | Use a session identifier from the message |
 | `<dir> is synchronized by session X, not Y` (255) | `-s` selected a session whose roots don't contain the directory, which another session's root does: the command would run at the selected session's remote root, not in a corresponding directory | Drop `-s` to use the session containing the directory, or add `--cwd` to say where to run on the selected session's side |
-| `<dir> is ignored by session X` / `<dir> is inside <dir2>, which session X ignores` (255) | The session containing the directory doesn't synchronize it. Usually it's the root of a nested session that's paused or disconnected (or doesn't run commands from this side); sometimes it's a directory such as a build directory that exists separately on each side | For a nested session, tell the user that it isn't running; don't work around it with `--cwd`, which would run in the enclosing session's unsynchronized copy. Only if the directory is meant to exist separately on the other side, add `--cwd .` |
+| `<dir> is ignored by session X` / `<dir> is inside <dir2>, which session X ignores` (255) | The session containing the directory doesn't synchronize it. Usually it's the root of a nested session that's paused or disconnected (or doesn't run commands from this side); sometimes it's a directory such as a build directory that exists separately on each side | The short error gives the ignored path (or ignored ancestor) and the session's unique name or ID. For a nested session, tell the user that it isn't running; don't work around it with `--cwd`, which would run in the enclosing session's unsynchronized copy. Only if the directory is meant to exist separately on the other side, add `--cwd .` |
 | `both endpoints of session ... are on this system` (255) | `--session` used outside both roots of a local session | Run from inside the root you want to submit from |
 | `session ... is no longer connected for remote commands on this system` (255) | The session paused, reconnected, or was terminated after `remote` located it; `remote` doesn't switch to another session midway | Retry after a few seconds; if it persists, tell the user |
 | `the connection to the executing endpoint was lost ...` (255) | The session stopped synchronizing while the command ran (paused, reconnecting, replaced, or the daemon stopped), so the command was terminated: SIGTERM, then SIGKILL 5 seconds later | Files that it was writing may be incomplete. Once `remote --flush` succeeds, check them and rerun the command; run long commands with `--detach`. If it recurs, tell the user |
@@ -356,3 +356,21 @@ empty for a clean tree, rather than `git describe --dirty`, for example by
 exporting `GIT_OPTIONAL_LOCKS=0` in the prologue. Tools that run Git
 internally, such as setuptools-scm, may still rewrite the index. If the other
 side doesn't need the repository, suggest that the user set `ignore.vcs: true`.
+
+## Execution paths and missing local outputs
+
+`remote --sessions` uses registered metadata for `runs on` and `cwd`; it runs no
+remote commands. `~/` is the executing user's home, and `unknown` means an older
+registration lacks the information. Use `remote pwd` to resolve an executing
+path. A directory outside the local root maps to the execution root only with
+an explicit selection; the list notes when `--cwd` is also required.
+
+Quote remote home paths, such as `remote -C '~/project' pwd`. If an absolute
+`-C` path under your local home is missing on the executor, remote suggests
+quoting `~` if that was your intent. It cannot detect prior shell expansion and
+doesn't rewrite paths. Directory errors, including failed `~user` expansion,
+exit with 126.
+
+For a path missing locally, `remote --ignores` reports `not present locally`
+and conditional file/directory results, without guessing its remote type.
+Either candidate being ignored gives status 1; local access failures are errors.

@@ -21,7 +21,9 @@ to manage. If the user asks to set up or change sessions, use the
   interpreter of its `#!` line) on the other side; arguments after `-` become
   `$1`, `$2`, .... `remote sh -c '...'` suits one-liners.
 - **No terminal.** Use non-interactive flags, and `--timeout <seconds>` for
-  anything that might hang.
+  anything that might hang. For immediate Python output, use `remote python -u`
+  or `-e PYTHONUNBUFFERED=1`; colors need the program's own force-color option.
+  See `remote --help environment` for buffering details.
 - **Long jobs run detached.** `id=$(remote --detach --log train.log python
   train.py)` starts a job that survives `remote` exiting and the session
   reconnecting, and prints its ID. `remote --wait "$id"` blocks until it ends,
