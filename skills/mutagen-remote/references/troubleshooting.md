@@ -226,7 +226,8 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
   exited. Processes still running 5 seconds after SIGTERM, such as workers
   that ignore it, get SIGKILL; the status shown is the command's. Interrupting
   `remote --kill` doesn't cut that short, and repeating it doesn't send
-  SIGTERM again.
+  SIGTERM again. It never synchronizes; `--no-flush` is accepted and has no
+  effect.
 - A job ends when its command exits. Processes that the command leaves running
   in the background aren't part of the job afterwards: `--wait` doesn't wait
   for them and `--kill` doesn't terminate them. So have job scripts `wait` for
