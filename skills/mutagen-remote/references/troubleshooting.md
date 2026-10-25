@@ -213,6 +213,7 @@ id=$(remote --detach --log train.log python train.py)   # prints only the ID
 remote --jobs                  # state, running time, log, and command
 remote tail -n 40 train.log    # progress
 remote --wait "$id"            # waits, synchronizes, exits with its status
+remote --wait "$id" --tail 40  # also prints the final 40 log lines
 remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 ```
 
@@ -239,6 +240,13 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
   stopping the job. If the connection is lost while waiting, `remote` retries
   for a minute. `--wait` synchronizes afterwards, so the job's outputs are
   local when it returns.
+- Add `--tail N` to `--wait` to print the final N log lines on standard
+  output after the job ends. This reads the executing side's log directly,
+  including ignored logs and the default log outside the synchronized tree.
+  `--tail 0` leaves output unchanged; negative counts are rejected. Tails are
+  limited to the last 1 MiB, with a warning if the requested lines exceed it.
+  Missing, unreadable, or non-regular logs produce a warning without changing
+  the job's exit status. Waiting without `--tail` doesn't print log contents.
 - A job is `lost` if it ended without recording its status. Jobs end with the
   machine or container that runs them, and service managers can end them too:
   stopping a Mutagen daemon that runs as a systemd service ends the jobs that

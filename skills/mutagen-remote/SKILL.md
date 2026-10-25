@@ -25,7 +25,8 @@ to manage. If the user asks to set up or change sessions, use the
 - **Long jobs run detached.** `id=$(remote --detach --log train.log python
   train.py)` starts a job that survives `remote` exiting and the session
   reconnecting, and prints its ID. `remote --wait "$id"` blocks until it ends,
-  synchronizes, and exits with its status; `remote --jobs` lists jobs, and
+  synchronizes, and exits with its status; add `--tail 40` to also print the
+  last 40 log lines, including ignored logs. `remote --jobs` lists jobs, and
   `remote --kill "$id"` stops one. `--detach` also takes `--script -`. Don't
   hand-roll `nohup ... &` or polling loops, and have job scripts `wait` for
   any background processes they start: a job ends when its command exits.
