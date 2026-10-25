@@ -26,10 +26,15 @@ to manage. If the user asks to set up or change sessions, use the
   train.py)` starts a job that survives `remote` exiting and the session
   reconnecting, and prints its ID. `remote --wait "$id"` blocks until it ends,
   synchronizes, and exits with its status; add `--tail 40` to also print the
-  last 40 log lines, including ignored logs. `remote --jobs` lists jobs, and
-  `remote --kill "$id"` stops one. `--detach` also takes `--script -`. Don't
-  hand-roll `nohup ... &` or polling loops, and have job scripts `wait` for
-  any background processes they start: a job ends when its command exits.
+  last 40 log lines, including ignored logs. To watch a job, run
+  `remote --wait "$id" --follow 2>&1` in the background or under a line-based
+  monitor, filtered to the lines you need: it prints the log as it's written
+  and ends like `--wait`. Without background commands, poll with
+  `remote --wait "$id" --tail 20 --timeout 300` (124 means still running).
+  `remote --jobs` lists jobs, and `remote --kill "$id"` stops one. `--detach`
+  also takes `--script -`. Don't hand-roll `nohup ... &`, `tail -f`, or
+  polling loops, and have job scripts `wait` for any background processes
+  they start: a job ends when its command exits.
 - **Keep the default synchronization.** A skipped flush silently runs outdated
   code, while an extra one only costs a rescan (well under a second for most
   trees). Use `--no-flush` only for commands that read and write no synced

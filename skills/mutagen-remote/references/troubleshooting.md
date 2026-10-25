@@ -41,7 +41,10 @@ what to change.
 | `no job <id> exists on this endpoint` (255) | Wrong ID, or the job ended more than 7 days ago | `remote --jobs` lists the jobs |
 | `job <id> was started at another synchronization root` (255) | The job belongs to another session's root on that system | Run from inside that session's root, or select it with `-s` |
 | `job <id> ended without recording its exit status` (255 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
-| `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected | Wait again, or `remote --kill <id>` |
+| `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected. With `--tail N`, the last N lines so far were printed first | Wait or poll again, or `remote --kill <id>` |
+| `warning: unable to follow the log of job <id>: the executing endpoint doesn't support following logs` | The other side runs an older Mutagen | The wait continues (with `--tail N`, the last N lines are printed at the end); read progress with `remote tail -n 40 <log>` and tell the user an upgrade adds `--follow` |
+| `warning: unable to follow the log of job <id>: ... is not a regular file` / `no such file or directory` / `was replaced since remote last read it` | The job logs to `/dev/null` or a device, or its log was deleted or replaced | Nothing; the wait continues and reports the job's status |
+| `warning: the log of job <id> became shorter than the N bytes followed so far` | The log was truncated, such as by log rotation or another job started with the same `--log` | Following restarts at the log's beginning; check `remote --jobs` for another job writing the same log |
 | `--timeout can't be combined with --detach` (255) | `--detach` returns as soon as the job starts | Limit the job itself: `remote --detach timeout 2h python train.py` |
 | `unable to open log` (126) | `--log`'s directory doesn't exist on the other side, or the log is a FIFO, socket, or directory rather than a regular file or character device | Create the directory, or choose another path, such as a regular file or `/dev/null` |
 | `unable to find the script's interpreter` (127) | Scripts without a `#!` line run with bash, which isn't on the other side's `PATH`, or the `#!` interpreter is missing | Add `#!/bin/sh` for POSIX scripts, or fix `PATH` (see "Commands missing from the remote environment") |
@@ -211,9 +214,9 @@ a detached job:
 ```sh
 id=$(remote --detach --log train.log python train.py)   # prints only the ID
 remote --jobs                  # state, running time, log, and command
-remote tail -n 40 train.log    # progress
+remote --wait "$id" --follow 2>&1   # prints the log as it's written, then waits
+remote --wait "$id" --tail 40 --timeout 300   # last 40 lines; 124 if running
 remote --wait "$id"            # waits, synchronizes, exits with its status
-remote --wait "$id" --tail 40  # also prints the final 40 log lines
 remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 ```
 
@@ -241,12 +244,36 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
   for a minute. `--wait` synchronizes afterwards, so the job's outputs are
   local when it returns.
 - Add `--tail N` to `--wait` to print the final N log lines on standard
-  output after the job ends. This reads the executing side's log directly,
-  including ignored logs and the default log outside the synchronized tree.
-  `--tail 0` leaves output unchanged; negative counts are rejected. Tails are
-  limited to the last 1 MiB, with a warning if the requested lines exceed it.
-  Missing, unreadable, or non-regular logs produce a warning without changing
-  the job's exit status. Waiting without `--tail` doesn't print log contents.
+  output after the job ends, or, if `--timeout` expires while it runs, before
+  exiting with 124. This reads the executing side's log directly, including
+  ignored logs and the default log outside the synchronized tree. `--tail 0`
+  leaves output unchanged; negative counts are rejected. Tails are limited to
+  the last 1 MiB, with a warning if the requested lines exceed it. Missing,
+  unreadable, or non-regular logs produce a warning without changing the
+  job's exit status. Waiting without `--tail` or `--follow` doesn't print log
+  contents.
+- **Watching a job.** `remote --wait "$id" --follow` prints the log as it's
+  written, from its beginning (`--tail N` starts with its last N lines,
+  `--tail 0` with only new output), then ends like `--wait`: it synchronizes,
+  prints `remote: job <id> exited with status N` on stderr, and exits with the
+  job's status, so it needs no timeout. Run it in the background or under a
+  line-based monitor and filter it, merging stderr so that the final status
+  line and any warnings are seen too:
+  `remote --wait "$id" --follow 2>&1 | grep --line-buffered -E 'loss|Error|^remote: '`.
+  Output passes through unchanged, so progress bars that redraw with `\r`
+  and no newline (such as tqdm's) don't reach line-based filters until a
+  newline arrives; filter on lines the program prints. If the connection is
+  lost, `remote` retries and resumes without repeating or skipping output.
+  It warns if the log became shorter (it was truncated, or another job was
+  started with the same `--log`) and then follows it from its beginning, and
+  if the log was replaced while disconnected, which it then doesn't follow.
+- **Polling without background commands.** `remote --wait "$id" --tail 20
+  --timeout 300` waits up to 5 minutes. If the job ends, it prints the last
+  20 lines, synchronizes, and exits with the job's status. If the job is
+  still running, it prints the last 20 lines so far, says `job <id> is still
+  running`, and exits with 124. Repeat it to check progress; `--timeout 1` is
+  a quick peek. It returns up to a second early so that the tail arrives in
+  time.
 - A job is `lost` if it ended without recording its status. Jobs end with the
   machine or container that runs them, and service managers can end them too:
   stopping a Mutagen daemon that runs as a systemd service ends the jobs that
