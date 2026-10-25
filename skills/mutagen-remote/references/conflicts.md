@@ -162,8 +162,10 @@ needed.
 "Pending": [{"Path", "Applied", "Workspace"}], "RemotePending":
 [<path>...]}`, where `CheckedOut` is `"local"` or `"remote"` (checked out
 through the other side) for checked-out conflicts. `LocalChanges` and
-`RemoteChanges` describe actual changes relative to the submitting endpoint; `ExcludedChanges` counts omitted changes in a bounded
-summary. `Changed` marks local checkouts whose copies changed since checkout, `Applied` marks partially
+`RemoteChanges` describe actual changes relative to the submitting endpoint;
+`ExcludedChanges` counts omitted changes in a bounded summary. Text listings
+describe at most five changes per side for each conflict and count the rest,
+so use `--json` to see more of them. `Changed` marks local checkouts whose copies changed since checkout, `Applied` marks partially
 applied resolutions (apply them again), `Pending` lists workspaces whose
 conflicts are no longer listed, with their locations (`Workspace`; those
 without `Applied` need the
