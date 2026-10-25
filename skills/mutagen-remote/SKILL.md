@@ -59,7 +59,7 @@ If it lacks an option described here, that `remote` is older than this skill:
 follow its help instead. Read a reference only when you need it:
 
 - [troubleshooting.md](references/troubleshooting.md) if `remote` exits with
-  255, 126, or 127, prints a `remote:` error or warning, or doesn't return; if
+  125, 255, 126, or 127, prints a `remote:` error or warning, or doesn't return; if
   a command is missing remotely (such as an inactive conda environment) or sees
   outdated files; for detached jobs, scripts, ignored outputs, or Git on the
   other side; or to run outside the current session or directory.

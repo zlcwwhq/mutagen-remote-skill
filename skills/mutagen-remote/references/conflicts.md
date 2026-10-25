@@ -172,4 +172,6 @@ checkout's `{"Path", "Local", "Remote", "Base", "Merged", "Files", "Binary",
 "Regions", "Take"}`, a discard's `{"Path", "Discarded", "Applied", "Backup"}`
 (`Applied` if results were applied through the workspace, so that a copy may
 have one, or one side's original may exist only in the backup), or an
-`"Error"` for a path that failed.
+`"Error"` for a path that failed, with `"ErrorKind"` (`operation`,
+`connection`, or `timeout`). A mixed batch exits with timeout first, then
+connection failure (255), then operation failure (125); read each path result.
