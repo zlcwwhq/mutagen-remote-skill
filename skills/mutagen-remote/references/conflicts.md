@@ -31,7 +31,9 @@ Local means the submitting endpoint, and remote means the opposite endpoint.
 With no workspace, this claims and checks out each unclaimed conflict, then
 applies it; no preceding list or checkout is required. It refuses another
 endpoint's checkout. A workspace already on this side is reused without
-refreshing its originals, so only reuse one you made. A failed apply keeps its
+refreshing its originals, so only reuse one you made. A side that can't be
+taken (see the listing's `Take`), or `--executable` for copies that aren't both
+files, is refused before anything is checked out. A failed apply keeps its
 workspace for retry or manual merging; don't discard a partial resolution.
 Plain merged-file apply and `--delete` still require explicit checkout.
 
