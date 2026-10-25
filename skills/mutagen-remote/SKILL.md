@@ -21,18 +21,28 @@ to manage. If the user asks to set up or change sessions, use the
   interpreter of its `#!` line) on the other side; arguments after `-` become
   `$1`, `$2`, .... `remote sh -c '...'` suits one-liners.
 - **No terminal.** Use non-interactive flags, and `--timeout <seconds>` for
-  anything that might hang.
+  anything that might hang. For immediate Python output, use `remote python -u`
+  or `-e PYTHONUNBUFFERED=1`; colors need the program's own force-color option.
+  See `remote --help environment` for buffering details.
 - **Long jobs run detached.** `id=$(remote --detach --log train.log python
   train.py)` starts a job that survives `remote` exiting and the session
   reconnecting, and prints its ID. `remote --wait "$id"` blocks until it ends,
-  synchronizes, and exits with its status; `remote --jobs` lists jobs, and
-  `remote --kill "$id"` stops one. `--detach` also takes `--script -`. Don't
-  hand-roll `nohup ... &` or polling loops, and have job scripts `wait` for
-  any background processes they start: a job ends when its command exits.
+  synchronizes, and exits with its status; add `--tail 40` to also print the
+  last 40 log lines, including ignored logs. To watch a job, run
+  `remote --wait "$id" --follow 2>&1` in the background or under a line-based
+  monitor, filtered to the lines you need: it prints the log as it's written
+  and ends like `--wait`. Without background commands, poll with
+  `remote --wait "$id" --tail 20 --timeout 300` (124 means still running).
+  `remote --jobs` lists jobs, and `remote --kill "$id"` stops one. `--detach`
+  also takes `--script -`. Don't hand-roll `nohup ... &`, `tail -f`, or
+  polling loops, and have job scripts `wait` for any background processes
+  they start: a job ends when its command exits.
 - **Keep the default synchronization.** A skipped flush silently runs outdated
   code, while an extra one only costs a rescan (well under a second for most
   trees). Use `--no-flush` only for commands that read and write no synced
   files, such as `nvidia-smi`; if you edited anything or aren't sure, flush.
+  If synchronizing is slow, add `--progress`: its final `remote: synchronized
+  in ...` line says where the time went.
 - **Ignored paths aren't synced.** If a file that a command wrote is missing
   locally, `remote --ignores <path>` shows whether the session ignores it;
   `remote --pull <path>` copies ignored files or directories here, so local
@@ -49,7 +59,7 @@ If it lacks an option described here, that `remote` is older than this skill:
 follow its help instead. Read a reference only when you need it:
 
 - [troubleshooting.md](references/troubleshooting.md) if `remote` exits with
-  255, 126, or 127, prints a `remote:` error or warning, or doesn't return; if
+  125, 255, 126, or 127, prints a `remote:` error or warning, or doesn't return; if
   a command is missing remotely (such as an inactive conda environment) or sees
   outdated files; for detached jobs, scripts, ignored outputs, or Git on the
   other side; or to run outside the current session or directory.

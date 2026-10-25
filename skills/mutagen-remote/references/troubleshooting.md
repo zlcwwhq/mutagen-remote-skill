@@ -5,6 +5,14 @@ run, and sessions (their state, configuration, and conflicts) are managed by the
 user. When a fix requires changing a session, tell the user what's wrong and
 what to change.
 
+Remote's own invalid input, refused operations, and file access failures return
+125; fix the reported cause before retrying. Connection setup, disconnects,
+protocol failures, and unreachable sessions return 255 and may be retryable.
+Timeout remains 124; directory/prologue/startup failures are 126, and missing
+commands are 127. `--diff`/`--ignores` use 1 only for their result, not failure.
+Command and completed job statuses are passed through, including 125 and 255,
+so the status alone cannot always identify whether remote failed.
+
 ## Where things are
 
 - On the daemon's machine, `remote` is installed alongside Mutagen. On SSH and
@@ -19,13 +27,14 @@ what to change.
 
 | Message | Cause | Fix |
 | --- | --- | --- |
-| `no connected session with remote commands enabled contains <dir>` (255) | Outside every synced root, or the session is paused, disconnected, or doesn't execute commands on the other side (they can be enabled in one direction only) | `cd` into the synced directory (`remote --sessions` lists the connected sessions' roots); otherwise tell the user |
+| `no connected session matching ...` (125) | The explicit `-s` name or ID doesn't select a registered session; it may also be paused or disconnected | Check `remote --sessions` and the spelling; if the expected session is absent, tell the user |
+| `no connected session with remote commands enabled contains <dir>` (255) | Outside every synced root, or the session is paused, disconnected, or doesn't execute commands on the other side (they can be enabled in one direction only) | `cd` into the synced directory (`remote --sessions` lists local roots, execution hosts/roots, and mapped working directories); otherwise tell the user |
 | `unable to connect to session ...: dial unix ...: connect: operation not permitted` (255) | A sandbox around your commands blocks Unix sockets, such as Codex's `workspace-write` sandbox without network access | Request to run `remote` outside the sandbox, or ask the user to allow it (for Codex, `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`) |
 | `<alpha\|beta> is not connected for remote commands` (255) | Session just started or is reconnecting | Retry after a few seconds; if it persists, tell the user |
-| `multiple sessions match ...` (255) | The name given with `-s` or `MUTAGEN_REMOTE_SESSION` is shared by the sessions listed in the message | Use a session identifier from the message |
-| `<dir> is synchronized by session X, not Y` (255) | `-s` selected a session whose roots don't contain the directory, which another session's root does: the command would run at the selected session's remote root, not in a corresponding directory | Drop `-s` to use the session containing the directory, or add `--cwd` to say where to run on the selected session's side |
-| `<dir> is ignored by session X` / `<dir> is inside <dir2>, which session X ignores` (255) | The session containing the directory doesn't synchronize it. Usually it's the root of a nested session that's paused or disconnected (or doesn't run commands from this side); sometimes it's a directory such as a build directory that exists separately on each side | For a nested session, tell the user that it isn't running; don't work around it with `--cwd`, which would run in the enclosing session's unsynchronized copy. Only if the directory is meant to exist separately on the other side, add `--cwd .` |
-| `both endpoints of session ... are on this system` (255) | `--session` used outside both roots of a local session | Run from inside the root you want to submit from |
+| `multiple sessions match ...` (125) | The name given with `-s` or `MUTAGEN_REMOTE_SESSION` is shared by the sessions listed in the message | Use a session identifier from the message |
+| `<dir> is synchronized by session X, not Y` (125) | `-s` selected a session whose roots don't contain the directory, which another session's root does: the command would run at the selected session's remote root, not in a corresponding directory | Drop `-s` to use the session containing the directory, or add `--cwd` to say where to run on the selected session's side |
+| `<dir> is ignored by session X` / `<dir> is inside <dir2>, which session X ignores` (125) | The session containing the directory doesn't synchronize it. Usually it's the root of a nested session that's paused or disconnected (or doesn't run commands from this side); sometimes it's a directory such as a build directory that exists separately on each side | The short error gives the ignored path (or ignored ancestor) and the session's unique name or ID. For a nested session, tell the user that it isn't running; don't work around it with `--cwd`, which would run in the enclosing session's unsynchronized copy. Only if the directory is meant to exist separately on the other side, add `--cwd .` |
+| `both endpoints of session ... are on this system` (125) | `--session` used outside both roots of a local session | Run from inside the root you want to submit from |
 | `session ... is no longer connected for remote commands on this system` (255) | The session paused, reconnected, or was terminated after `remote` located it; `remote` doesn't switch to another session midway | Retry after a few seconds; if it persists, tell the user |
 | `the connection to the executing endpoint was lost ...` (255) | The session stopped synchronizing while the command ran (paused, reconnecting, replaced, or the daemon stopped), so the command was terminated: SIGTERM, then SIGKILL 5 seconds later | Files that it was writing may be incomplete. Once `remote --flush` succeeds, check them and rerun the command; run long commands with `--detach`. If it recurs, tell the user |
 | `registered by Mutagen X, but this is Mutagen Y` (255) | `remote` from a different Mutagen version, such as a `PATH` entry for an older agent after an upgrade | Use the `remote` installed with version X (on SSH and Docker endpoints, `~/.mutagen/agents/X/remote`); tell the user that the `mutagen-setup` skill installs a `remote` that follows upgrades |
@@ -36,21 +45,24 @@ what to change.
 | `remote: prologue <path> failed with exit status N` (126) | The prologue returned non-zero, had a syntax error, or exited | Inspect with `remote --no-prologue cat <path>`; repair a workspace override locally, preserving existing setup |
 | `unable to access prologue` (126) | A prologue is missing or inaccessible, or an override is a dangling link | Use `--no-prologue` to inspect the reported path; repair the workspace override, or tell the user if their configured script is unavailable |
 | `unable to access working directory` (126) | The corresponding directory doesn't exist remotely | See "Conflicts and unsynchronized content", or use `--cwd` |
-| `is checked out through the opposite endpoint` (255) | The conflict was checked out from the other side, which alone can apply or discard it | Leave it and its paths alone; if it seems abandoned, ask the user to discard it on that side (`remote --conflict-discard <path>`) |
-| `is already checked out in <dir>` (255) | The conflict has a workspace on this side, which may be another agent's or the user's resolution in progress | If you checked it out, do what the message says; otherwise leave it, or ask the user |
-| `no job <id> exists on this endpoint` (255) | Wrong ID, or the job ended more than 7 days ago | `remote --jobs` lists the jobs |
-| `job <id> was started at another synchronization root` (255) | The job belongs to another session's root on that system | Run from inside that session's root, or select it with `-s` |
-| `job <id> ended without recording its exit status` (255 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
-| `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected | Wait again, or `remote --kill <id>` |
-| `--timeout can't be combined with --detach` (255) | `--detach` returns as soon as the job starts | Limit the job itself: `remote --detach timeout 2h python train.py` |
-| `unable to open log` (126) | `--log`'s directory doesn't exist on the other side, or the log is a FIFO, socket, or directory rather than a regular file or character device | Create the directory, or choose another path, such as a regular file or `/dev/null` |
+| `is checked out through the opposite endpoint` (125) | The conflict was checked out from the other side, which alone can apply or discard it | Leave it and its paths alone; if it seems abandoned, ask the user to discard it on that side (`remote --conflict-discard <path>`) |
+| `is already checked out in <dir>` (125) | The conflict has a workspace on this side, which may be another agent's or the user's resolution in progress | If you checked it out, do what the message says; otherwise leave it, or ask the user |
+| `no job <id> exists on this endpoint` (125) | Wrong ID, or the job ended more than 7 days ago | `remote --jobs` lists the jobs |
+| `job <id> was started at another synchronization root` (125) | The job belongs to another session's root on that system | Run from inside that session's root, or select it with `-s` |
+| `job <id> ended without recording its exit status` (125 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
+| `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected. With `--tail N`, the last N lines so far were printed first | Wait or poll again, or `remote --kill <id>` |
+| `warning: unable to follow the log of job <id>: the executing endpoint doesn't support following logs` | The other side runs an older Mutagen | The wait continues (with `--tail N`, the last N lines are printed at the end); read progress with `remote tail -n 40 <log>` and tell the user an upgrade adds `--follow` |
+| `warning: unable to follow the log of job <id>: ... is not a regular file` / `no such file or directory` / `was replaced since remote last read it` | The job logs to `/dev/null` or a device, or its log was deleted or replaced | Nothing; the wait continues and reports the job's status |
+| `warning: the log of job <id> became shorter than the N bytes followed so far` | The log was truncated, such as by log rotation or another job started with the same `--log` | Following restarts at the log's beginning; check `remote --jobs` for another job writing the same log |
+| `--timeout can't be combined with --detach` (125) | `--detach` returns as soon as the job starts | Limit the job itself: `remote --detach timeout 2h python train.py` |
+| `unable to open log` (125) | `--log`'s directory doesn't exist on the other side, or the log is a FIFO, socket, or directory rather than a regular file or character device | Create the directory, or choose another path, such as a regular file or `/dev/null` |
 | `unable to find the script's interpreter` (127) | Scripts without a `#!` line run with bash, which isn't on the other side's `PATH`, or the `#!` interpreter is missing | Add `#!/bin/sh` for POSIX scripts, or fix `PATH` (see "Commands missing from the remote environment") |
-| `the script exceeds the size limit` (255) | `--script` takes at most 512 KiB | Save the script in the synced tree and run `remote bash <path>` |
-| `unable to pull <path>: the session synchronizes it` (255) | `--pull` only copies ignored paths; synchronized ones arrive through synchronization | `remote --flush`; if the file is still missing, check for a conflict or problem warning |
-| `... synchronizes some content beneath it, so remote doesn't pull it as a whole` (255) | The directory is ignored, but some content beneath it is unignored and synchronized | Pull the ignored files or directories beneath it instead |
-| `... resolves to <path> through a symbolic link, and the session synchronizes that` (255) | An ignored local symbolic link among the path's parents leads into synchronized content, which `--pull` doesn't overwrite | Read the file with `remote cat`, or tell the user; `remote --ignores <path>` shows `synchronized as <path>` |
-| `... synchronized by <session>, so remote doesn't write it` / `doesn't create it` (255) | Another session on this machine synchronizes the path, or a missing parent of it, so that session updates it | Leave it to that session, or read the remote copy with `remote cat`; tell the user if that session lacks the content |
-| `... in only some Unicode normalization forms of its path and may synchronize it` (255) | An ignore pattern spells an accented name in only one Unicode normalization form, so the session may synchronize the name | Read it with `remote cat`, or ask the user to make the pattern match both forms, such as `caf*.txt` |
+| `the script exceeds the size limit` (125) | `--script` takes at most 512 KiB | Save the script in the synced tree and run `remote bash <path>` |
+| `unable to pull <path>: the session synchronizes it` (125) | `--pull` only copies ignored paths; synchronized ones arrive through synchronization | `remote --flush`; if the file is still missing, check for a conflict or problem warning |
+| `... synchronizes some content beneath it, so remote doesn't pull it as a whole` (125) | The directory is ignored, but some content beneath it is unignored and synchronized | Pull the ignored files or directories beneath it instead |
+| `... resolves to <path> through a symbolic link, and the session synchronizes that` (125) | An ignored local symbolic link among the path's parents leads into synchronized content, which `--pull` doesn't overwrite | Read the file with `remote cat`, or tell the user; `remote --ignores <path>` shows `synchronized as <path>` |
+| `... synchronized by <session>, so remote doesn't write it` / `doesn't create it` (125) | Another session on this machine synchronizes the path, or a missing parent of it, so that session updates it | Leave it to that session, or read the remote copy with `remote cat`; tell the user if that session lacks the content |
+| `... in only some Unicode normalization forms of its path and may synchronize it` (125) | An ignore pattern spells an accented name in only one Unicode normalization form, so the session may synchronize the name | Read it with `remote cat`, or ask the user to make the pattern match both forms, such as `caf*.txt` |
 | `... aren't supported on Windows endpoints` / `... on Windows or AIX endpoints` (126) | Scripts need a POSIX system on the executing side, and detached jobs one other than AIX | Run commands instead, such as `remote powershell -Command ...` on Windows; on AIX, run long commands in the foreground |
 
 Statuses 128+N mean that the remote command was killed by signal N.
@@ -136,6 +148,26 @@ compared to running outdated code, so use `--no-flush` only for commands that
 read and write no synchronized files, never right after editing files, and
 suggest that the user ignore large generated directories in the session.
 
+If `remote` seems stuck before a command starts or after it finished, it's
+usually synchronizing. Flushes that take over 3 seconds show their progress on
+standard error: automatically on a terminal, and otherwise only with
+`--progress`, which prints `remote:` lines when the phase changes and every 10
+seconds. Add `--progress` (before the command) to runs in the background or
+under a monitor. The final line says where the time went, such as
+`remote: synchronized in 44s: scanning 31s; staging on alpha (local) 12s, 1 file, 5.0 MiB`:
+
+- Long `scanning`: the trees are large, since every flush rescans both roots in
+  full. Suggest that the user ignore large generated or data directories.
+- Long `staging on <endpoint>`: changed files are being transferred to that
+  endpoint (`local` or `remote` says which side), with their count and
+  approximate size. Write large outputs to ignored paths and copy what's needed
+  with `--pull`, or tell the user that the link is slow.
+- Repeated phases mean that the session was already synchronizing other changes
+  when the flush started.
+
+`--progress=false` turns it off. If the other side's Mutagen doesn't report
+phases, only the elapsed time is shown.
+
 For a session that synchronizes a single file, run `remote -s <name-or-id>
 --diff` from outside its root, or pass the local file's absolute path after
 `--diff`. File/directory conflicts are supported: children beneath a file are
@@ -211,7 +243,8 @@ a detached job:
 ```sh
 id=$(remote --detach --log train.log python train.py)   # prints only the ID
 remote --jobs                  # state, running time, log, and command
-remote tail -n 40 train.log    # progress
+remote --wait "$id" --follow 2>&1   # prints the log as it's written, then waits
+remote --wait "$id" --tail 40 --timeout 300   # last 40 lines; 124 if running
 remote --wait "$id"            # waits, synchronizes, exits with its status
 remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 ```
@@ -226,7 +259,8 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
   exited. Processes still running 5 seconds after SIGTERM, such as workers
   that ignore it, get SIGKILL; the status shown is the command's. Interrupting
   `remote --kill` doesn't cut that short, and repeating it doesn't send
-  SIGTERM again.
+  SIGTERM again. It never synchronizes; `--no-flush` is accepted and has no
+  effect.
 - A job ends when its command exits. Processes that the command leaves running
   in the background aren't part of the job afterwards: `--wait` doesn't wait
   for them and `--kill` doesn't terminate them. So have job scripts `wait` for
@@ -237,7 +271,39 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 - `remote --wait "$id" --timeout 10m` bounds the wait (exit 124) without
   stopping the job. If the connection is lost while waiting, `remote` retries
   for a minute. `--wait` synchronizes afterwards, so the job's outputs are
-  local when it returns.
+  local when it returns. With large outputs, add `--progress` to see that
+  synchronization.
+- Add `--tail N` to `--wait` to print the final N log lines on standard
+  output after the job ends, or, if `--timeout` expires while it runs, before
+  exiting with 124. This reads the executing side's log directly, including
+  ignored logs and the default log outside the synchronized tree. `--tail 0`
+  leaves output unchanged; negative counts are rejected. Tails are limited to
+  the last 1 MiB, with a warning if the requested lines exceed it. Missing,
+  unreadable, or non-regular logs produce a warning without changing the
+  job's exit status. Waiting without `--tail` or `--follow` doesn't print log
+  contents.
+- **Watching a job.** `remote --wait "$id" --follow` prints the log as it's
+  written, from its beginning (`--tail N` starts with its last N lines,
+  `--tail 0` with only new output), then ends like `--wait`: it synchronizes,
+  prints `remote: job <id> exited with status N` on stderr, and exits with the
+  job's status, so it needs no timeout. Run it in the background or under a
+  line-based monitor and filter it, merging stderr so that the final status
+  line and any warnings are seen too:
+  `remote --wait "$id" --follow 2>&1 | grep --line-buffered -E 'loss|Error|^remote: '`.
+  Output passes through unchanged, so progress bars that redraw with `\r`
+  and no newline (such as tqdm's) don't reach line-based filters until a
+  newline arrives; filter on lines the program prints. If the connection is
+  lost, `remote` retries and resumes without repeating or skipping output.
+  It warns if the log became shorter (it was truncated, or another job was
+  started with the same `--log`) and then follows it from its beginning, and
+  if the log was replaced while disconnected, which it then doesn't follow.
+- **Polling without background commands.** `remote --wait "$id" --tail 20
+  --timeout 300` waits up to 5 minutes. If the job ends, it prints the last
+  20 lines, synchronizes, and exits with the job's status. If the job is
+  still running, it prints the last 20 lines so far, says `job <id> is still
+  running`, and exits with 124. Repeat it to check progress; `--timeout 1` is
+  a quick peek. It returns up to a second early so that the tail arrives in
+  time.
 - A job is `lost` if it ended without recording its status. Jobs end with the
   machine or container that runs them, and service managers can end them too:
   stopping a Mutagen daemon that runs as a systemd service ends the jobs that
@@ -299,3 +365,29 @@ empty for a clean tree, rather than `git describe --dirty`, for example by
 exporting `GIT_OPTIONAL_LOCKS=0` in the prologue. Tools that run Git
 internally, such as setuptools-scm, may still rewrite the index. If the other
 side doesn't need the repository, suggest that the user set `ignore.vcs: true`.
+
+## Execution paths and missing local outputs
+
+`remote --sessions` uses registered metadata for `runs on` and `cwd`; it runs no
+remote commands. `~/` is the executing user's home, and `unknown` means an older
+registration lacks the information. Use `remote pwd` to resolve an executing
+path. A directory outside the local root maps to the execution root only with
+an explicit selection; the list notes when `--cwd` is also required.
+
+Quote remote home paths, such as `remote -C '~/project' pwd`. If an absolute
+`-C` path under your local home is missing on the executor, remote suggests
+quoting `~` if that was your intent. It cannot detect prior shell expansion and
+doesn't rewrite paths. Directory errors, including failed `~user` expansion,
+exit with 126.
+
+For a path missing locally, `remote --ignores` reports `not present locally`
+and conditional file/directory results, without guessing its remote type.
+Either candidate being ignored gives status 1; local access failures are errors.
+
+`remote --pull` preserves regular-file mtime (including recursive files),
+truncated to whole seconds, so a copy is never newer than its source. It uses
+the executing endpoint's clock, so clock skew is retained. Files whose contents
+match but times differ are atomically replaced, keeping their local permissions,
+and counted as `metadata updated`; repeated pulls with matching content/time
+are unchanged. Other added or replaced files get default permissions.
+Directory/link timestamps and atime/ctime aren't preserved.
