@@ -20,6 +20,23 @@ tied to who made them, so a conflict checked out on your side may be another
 agent's or the user's resolution in progress: apply or discard only conflicts
 that you checked out, and ask the user about others.
 
+To keep one side without merging, use one invocation:
+
+```sh
+remote --conflict-apply --take local <path>...
+remote --conflict-apply --take remote <path>...
+```
+
+Local means the submitting endpoint, and remote means the opposite endpoint.
+With no workspace, this claims and checks out each unclaimed conflict, then
+applies it; no preceding list or checkout is required. It refuses another
+endpoint's checkout. A workspace already on this side is reused without
+refreshing its originals, so only reuse one you made. A failed apply keeps its
+workspace for retry or manual merging; don't discard a partial resolution.
+Plain merged-file apply and `--delete` still require explicit checkout.
+
+To combine both sides manually:
+
 1. Run `remote --conflicts`. It synchronizes and lists every conflict, with
    paths relative to the current directory. Conflicts that aren't between two
    files say which copies `--take` can keep. Lines marked as something remote
@@ -136,13 +153,15 @@ missing, such as those of interrupted checkouts.
 
 Conflict operations accept several paths, with options before them, so that
 many conflicts can be resolved the same way at once, such as
-`remote --conflict-apply --take local <path>...` after checking them out.
+`remote --conflict-apply --take local <path>...` with automatic checkout when
+needed.
 `--json` prints results as JSON: the listing as `{"Conflicts": [{"Path",
 "Resolvable", "Files", "Take", "CheckedOut", "Changed", "Applied"}],
 "Pending": [{"Path", "Applied", "Workspace"}], "RemotePending":
 [<path>...]}`, where `CheckedOut` is `"local"` or `"remote"` (checked out
-through the other side) for checked-out conflicts, `Changed` marks local
-checkouts whose copies changed since checkout, `Applied` marks partially
+through the other side) for checked-out conflicts. `LocalChanges` and
+`RemoteChanges` describe actual changes relative to the submitting endpoint; `ExcludedChanges` counts omitted changes in a bounded
+summary. `Changed` marks local checkouts whose copies changed since checkout, `Applied` marks partially
 applied resolutions (apply them again), `Pending` lists workspaces whose
 conflicts are no longer listed, with their locations (`Workspace`; those
 without `Applied` need the
