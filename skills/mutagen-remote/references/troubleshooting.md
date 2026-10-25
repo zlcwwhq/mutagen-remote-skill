@@ -139,6 +139,26 @@ compared to running outdated code, so use `--no-flush` only for commands that
 read and write no synchronized files, never right after editing files, and
 suggest that the user ignore large generated directories in the session.
 
+If `remote` seems stuck before a command starts or after it finished, it's
+usually synchronizing. Flushes that take over 3 seconds show their progress on
+standard error: automatically on a terminal, and otherwise only with
+`--progress`, which prints `remote:` lines when the phase changes and every 10
+seconds. Add `--progress` (before the command) to runs in the background or
+under a monitor. The final line says where the time went, such as
+`remote: synchronized in 44s: scanning 31s; staging on alpha (local) 12s, 1 file, 5.0 MiB`:
+
+- Long `scanning`: the trees are large, since every flush rescans both roots in
+  full. Suggest that the user ignore large generated or data directories.
+- Long `staging on <endpoint>`: changed files are being transferred to that
+  endpoint (`local` or `remote` says which side), with their count and
+  approximate size. Write large outputs to ignored paths and copy what's needed
+  with `--pull`, or tell the user that the link is slow.
+- Repeated phases mean that the session was already synchronizing other changes
+  when the flush started.
+
+`--progress=false` turns it off. If the other side's Mutagen doesn't report
+phases, only the elapsed time is shown.
+
 For a session that synchronizes a single file, run `remote -s <name-or-id>
 --diff` from outside its root, or pass the local file's absolute path after
 `--diff`. File/directory conflicts are supported: children beneath a file are
@@ -242,7 +262,8 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 - `remote --wait "$id" --timeout 10m` bounds the wait (exit 124) without
   stopping the job. If the connection is lost while waiting, `remote` retries
   for a minute. `--wait` synchronizes afterwards, so the job's outputs are
-  local when it returns.
+  local when it returns. With large outputs, add `--progress` to see that
+  synchronization.
 - Add `--tail N` to `--wait` to print the final N log lines on standard
   output after the job ends, or, if `--timeout` expires while it runs, before
   exiting with 124. This reads the executing side's log directly, including

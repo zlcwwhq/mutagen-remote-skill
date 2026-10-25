@@ -39,6 +39,8 @@ to manage. If the user asks to set up or change sessions, use the
   code, while an extra one only costs a rescan (well under a second for most
   trees). Use `--no-flush` only for commands that read and write no synced
   files, such as `nvidia-smi`; if you edited anything or aren't sure, flush.
+  If synchronizing is slow, add `--progress`: its final `remote: synchronized
+  in ...` line says where the time went.
 - **Ignored paths aren't synced.** If a file that a command wrote is missing
   locally, `remote --ignores <path>` shows whether the session ignores it;
   `remote --pull <path>` copies ignored files or directories here, so local
