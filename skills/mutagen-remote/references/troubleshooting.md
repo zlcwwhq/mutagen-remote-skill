@@ -374,3 +374,9 @@ exit with 126.
 For a path missing locally, `remote --ignores` reports `not present locally`
 and conditional file/directory results, without guessing its remote type.
 Either candidate being ignored gives status 1; local access failures are errors.
+
+`remote --pull` preserves regular-file mtime (including recursive files) to the
+nearest second, using the executing endpoint's clock. Clock skew is retained.
+Files whose contents match but times differ are atomically replaced and counted
+as `metadata updated`; repeated pulls with matching content/time are unchanged.
+Directory/link timestamps and atime/ctime aren't preserved.
