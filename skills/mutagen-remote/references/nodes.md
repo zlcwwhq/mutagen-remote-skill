@@ -27,7 +27,7 @@ Inspect its results and resolve the synchronization problem before deciding to
 retry; never automatically repeat a command with side effects. Timeout (124),
 connection loss (255), and interruption can also leave results on the target.
 Pausing/disconnecting a path endpoint or changing tree membership interrupts
-active calls; external session creation/removal can also invalidate them.
+active calls; creating/removing an overlapping external session also does so.
 Reconnection doesn't redirect or retry an invocation.
 
 Use the reported edge's `remote --session <name-or-id> --conflicts` from one of
