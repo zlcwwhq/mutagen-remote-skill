@@ -9,12 +9,15 @@ Use `remote --nodes` to discover the current workspace's nodes and connection
 availability, then `remote --node <name> <command> [args...]` to run on the
 chosen node in the corresponding directory. Omit the name only when there is
 exactly one other node. Ordinary pairs expose `alpha` and `beta`; declared
-trees use their configured names. Use only `remote`: endpoint systems may
+stars use their configured names. Use only `remote`: endpoint systems may
 lack the `mutagen` CLI. Setup and topology changes belong to `mutagen-setup`.
 
-Read [nodes.md](references/nodes.md) for tree synchronization, path conflicts,
-and adjacent-operation limits. `--nodes` is read-only; availability is not a
-synchronization guarantee. `--session`, `-s`, `--sessions`, and the exported
+In a star, the center reaches every node, while every other node reaches only
+the center: from a non-center node, plain `remote <command>` runs on the
+center, and selecting another node fails with 125 (no multi-hop), so run such
+commands from the center. Read [nodes.md](references/nodes.md) for stars and
+star problems. `--nodes` is read-only; availability is not a synchronization
+guarantee. `--session`, `-s`, `--sessions`, and the exported
 `MUTAGEN_REMOTE_SESSION` are deprecated and rejected; unset the variable and
 select nodes explicitly. Check the installed `remote --help` before using new
 options. Add the same `--node` to subsequent job and file operations.
@@ -43,12 +46,10 @@ options. Add the same `--node` to subsequent job and file operations.
   also takes `--script -`. Don't hand-roll `nohup ... &`, `tail -f`, or
   polling loops, and have job scripts `wait` for any background processes
   they start: a job ends when its command exits.
-- **Keep synchronization enabled.** Tree foreground commands and detached job
-  starts require strict preflight; conflicts prevent execution. A skipped
-  flush silently runs outdated code, while an extra one only costs a rescan
-  (well under a second for most trees). Use `--no-flush` only for commands
-  that read and write no synced files, such as `nvidia-smi`; in a tree, it also
-  skips the conflict checks. If you edited anything or aren't sure, flush.
+- **Keep synchronization enabled.** A skipped flush silently runs outdated
+  code, while an extra one only costs a rescan (well under a second for most
+  trees). Use `--no-flush` only for commands that read and write no synced
+  files, such as `nvidia-smi`; if you edited anything or aren't sure, flush.
   If synchronizing is slow, add `--progress`: its final `remote: synchronized
   in ...` line says where the time went.
 - **Ignored paths aren't synced.** If a file that a command wrote is missing

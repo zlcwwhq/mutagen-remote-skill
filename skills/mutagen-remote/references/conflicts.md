@@ -40,11 +40,13 @@ Plain merged-file apply and `--delete` still require explicit checkout.
 To combine both sides manually:
 
 1. Run `remote --conflicts`. It synchronizes and lists every conflict, with
-   paths relative to the current directory. In a tree, run it from an
-   endpoint of the conflicting edge with `--node` selecting its peer (see
-   [nodes.md](nodes.md)). Conflicts that aren't between two
-   files say which copies `--take` can keep. Lines marked as something remote
-   can't resolve need the manual approach. Conflicts involving directories
+   paths relative to the current directory. In a star, conflicts belong to
+   the edge between the center and one node: work from the center with
+   `--node` selecting that node, or from that node, and keep the same
+   selection on every command of the workflow (see [nodes.md](nodes.md)).
+   Conflicts that aren't between two files say which copies `--take` can
+   keep. Lines marked as something remote can't resolve need the manual
+   approach. Conflicts involving directories
    are rejected by checkout and apply; report these to the user. Conflicts
    checked out through the other side belong to whoever checked them out
    there: leave them alone, and ask the user if they seem abandoned. A
@@ -159,19 +161,16 @@ Conflict operations accept several paths, with options before them, so that
 many conflicts can be resolved the same way at once, such as
 `remote --conflict-apply --take local <path>...` with automatic checkout when
 needed.
-`--conflicts --json` always returns `{"edges": [...]}`, including for a
-single pair. Each edge names `alpha`, `beta`, its traversal `source` and
-`target`, and a `listing`. That listing has the form `{"Conflicts": [{"Path",
-"Resolvable", "Files", "Take", "CheckedOut", "Changed", "Applied"}],
-"Pending": [{"Path", "Applied", "Workspace"}], "RemotePending":
-[<path>...]}`, where `CheckedOut` is `"local"` or `"remote"` (checked out
+`--conflicts --json` returns `{"edges": [...]}` with a single entry, which
+names the edge's `alpha` and `beta` nodes, the listing's `source` (this node)
+and `target`, and contains the `listing`. That listing has the form
+`{"Conflicts": [{"Path", "Resolvable", "Files", "Take", "CheckedOut",
+"Changed", "Applied"}], "Pending": [{"Path", "Applied", "Workspace"}],
+"RemotePending": [<path>...]}`, where `CheckedOut` is `"local"` or `"remote"` (checked out
 through the other side) for checked-out conflicts. `LocalChanges` and
-`RemoteChanges` describe actual changes on the edge's `source` and `target`;
-these can be intermediate nodes on a multi-edge path. Local merge workspaces
-are inspected only on the edge adjacent to the submitting node.
+`RemoteChanges` describe changes on the entry's `source` and `target`.
 `Problems` preserves scan and transition problems. `Checkouts` records each
-checkout's `Path` and owning `Node`, including on intermediate nodes where the
-local merge workspace cannot be inspected.
+checkout's `Path` and owning `Node`.
 `ExcludedChanges` counts omitted changes in a bounded summary. Text listings
 describe at most five changes per side for each conflict and count the rest,
 so use `--json` to see more of them. `Changed` marks local checkouts whose copies changed since checkout, `Applied` marks partially
