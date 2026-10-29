@@ -136,9 +136,9 @@ endpoint, including its captured Docker environment, to preserve its identity.
 Shared settings under `tree.sync` extend global and `sync.defaults` settings,
 but only `two-way-safe` is accepted. Pair-specific endpoint defaults don't
 apply to nodes, and neither does `remotePrologue` from global or project
-defaults. Set each node's
-prologue there, and use `MUTAGEN_REMOTE_NODE` in shared scripts instead
-of alpha/beta roles, which depend on the incident edge.
+defaults. Set each node's prologue on the node, and use `MUTAGEN_REMOTE_NODE`
+in shared scripts, such as `.remote-prologue.sh`, instead of alpha/beta roles,
+which depend on the incident edge.
 
 `tree.remote: true` explicitly authorizes commands **between all nodes**, not
 just parent and child. It defaults to false regardless of pair defaults.
@@ -160,9 +160,9 @@ require adjacent nodes. Tree detached job starts also require strict preflight.
 `--no-flush` skips these synchronizations and their conflict checks.
 Changing an unrelated, valid branch doesn't interrupt a running tree command
 unless it closes the submission connection. Changing its path or introducing
-a problem that makes the path unsafe interrupts it.
-The tree
-doesn't provide writer isolation or whole-tree atomic synchronization. See `remote --help nodes` for operational details.
+a problem that makes the path unsafe interrupts it. The tree doesn't provide
+writer isolation or whole-tree atomic synchronization. See
+`remote --help nodes` for operational details.
 
 ## Changing the configuration later
 

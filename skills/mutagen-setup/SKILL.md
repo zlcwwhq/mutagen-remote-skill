@@ -154,7 +154,8 @@ confuse it with discovery or automatically retry commands with side effects.
   `mutagen` (step 2).
 - **Prologue**: configure environment setup as described in
   [configuration.md](references/configuration.md#remote-commands-and-prologues),
-  and check it with `remote sh -c 'command -v python'` (or the relevant tool).
+  and check it with `remote --node <name> sh -c 'command -v python'` (or the
+  relevant tool).
 - **The mutagen-remote skill**, which teaches agents to use `remote`: on each
   system where agents submit commands, install it in Claude Code with
   `claude plugin marketplace add zlcwwhq/mutagen-remote-skill` and
@@ -182,7 +183,7 @@ When the user asks to upgrade, or `--check` reports `update available`:
 3. Check that `mutagen version` and `remote --version` print the new version
    and that `mutagen sync list` shows every session back at `Watching for
    changes`; endpoints receive the new agents as their sessions reconnect.
-   Then run `remote pwd` from a project directory.
+   Then run `remote --node <name> pwd` from a project directory, as in step 6.
 4. On endpoints that submit commands, the wrapper from step 7 follows the
    upgrade by itself. Reinstall it if it differs from `scripts/remote.sh`
    (`ssh <host> cat ~/.local/bin/remote | cmp - <skill-directory>/scripts/remote.sh`),

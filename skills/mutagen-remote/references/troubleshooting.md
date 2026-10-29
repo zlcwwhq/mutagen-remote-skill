@@ -33,6 +33,9 @@ so the status alone cannot always identify whether remote failed.
 | `unknown node` (125) / `node ... unavailable` (255) | The name isn't configured, or its path isn't connected | Inspect `--nodes`; correct the name or ask the user to restore the reported edge |
 | `tree commands are unavailable until the workspace tree is repaired` (125) | A tree edge was terminated, failed to load, or was only partly applied, or another session overlaps a node; `--nodes` shows it as `Tree problem:` | Tell the user the problem; reapplying the project usually repairs it. Existing job control, conflicts, and other operations on adjacent nodes still work meanwhile; new detached jobs can't start, even with `--no-flush` (see [nodes.md](nodes.md#tree-problems)) |
 | `this operation requires an adjacent node` (125) | Jobs, `--detach`, conflict changes, diff/pull, and `--flush` only reach a neighbor | Run from the target's neighbor, or use a foreground tree command |
+| `command not started: edge <a> <-> <b> has unsynchronized content` (125) | A tree command's preflight found a conflict or problem on that path edge; tree commands fail instead of warning | Inspect with the command that the message gives, and resolve from an endpoint of that edge (see [nodes.md](nodes.md) and [conflicts.md](conflicts.md)); don't retry until then. Commands that read and write no synced files, such as `nvidia-smi`, can run meanwhile with `--no-flush` |
+| `..., but synchronization back failed: ...` (125) | A tree command ran, with the reported status, but an edge failed to synchronize back | **The command already ran**: don't rerun side effects. Fix the reported edge as above, then check that its outputs arrived |
+| `tree route was interrupted` / `workspace tree topology changed` / `tree endpoint disconnected` (255) | A path edge was paused, replaced, or disconnected, or the tree changed, during a tree command. After `tree route was interrupted`, the command may have run without its changes synchronized back | Check `remote --nodes`, and inspect the target before rerunning anything with side effects; if it persists, tell the user |
 | `no connected node contains ...` (255) | No source workspace is connected for commands | Enter a workspace root, or ask the user to restore its connection |
 | `unable to connect to session ...: dial unix ...: connect: operation not permitted` (255) | A sandbox around your commands blocks Unix sockets, such as Codex's `workspace-write` sandbox without network access | Request to run `remote` outside the sandbox, or ask the user to allow it (for Codex, `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`) |
 | `<alpha\|beta> is not connected for remote commands` (255) | Session just started or is reconnecting | Retry after a few seconds; if it persists, tell the user |
@@ -40,7 +43,7 @@ so the status alone cannot always identify whether remote failed.
 | `session ... is no longer connected for remote commands on this system` (255) | The session paused, reconnected, or was terminated after `remote` located it; `remote` doesn't switch to another session midway | Retry after a few seconds; if it persists, tell the user |
 | `the connection to the executing endpoint was lost ...` (255) | The session stopped synchronizing while the command ran (paused, reconnecting, replaced, or the daemon stopped), so the command was terminated: SIGTERM, then SIGKILL 5 seconds later | Files that it was writing may be incomplete. Once `remote --flush` succeeds, check them and rerun the command; run long commands with `--detach`. If it recurs, tell the user |
 | `registered by Mutagen X, but this is Mutagen Y` (255) | `remote` from a different Mutagen version, such as a `PATH` entry for an older agent after an upgrade | Use the `remote` installed with version X (on SSH and Docker endpoints, `~/.mutagen/agents/X/remote`); tell the user that the `mutagen-setup` skill installs a `remote` that follows upgrades |
-| `warning: unable to synchronize before/after the command` | The session stopped synchronizing during a flush, or `--timeout` expired | The command still ran; retry with `remote --flush`, and tell the user if it keeps failing |
+| `warning: unable to synchronize before/after the command` | The session stopped synchronizing during a flush, or `--timeout` expired (ordinary pairs; tree commands fail instead, as above) | The command still ran; retry with `remote --flush`, and tell the user if it keeps failing |
 | `synchronization stopped before the flush completed` (255 with `--flush`) | Same as above | Same as above |
 | `unable to find command` (127) | Not on the remote `PATH` | See "Commands missing from the remote environment" |
 | `remote: prologue <path> failed with exit status N` (126) | The prologue returned non-zero, had a syntax error, or exited | Inspect with `remote --no-prologue cat <path>`; repair a workspace override locally, preserving existing setup |
@@ -190,7 +193,10 @@ Discover the executing side with
 `remote --no-prologue sh -c 'printf "%s\n" "$MUTAGEN_REMOTE_ENDPOINT"'`.
 `remote` supplies `alpha` or `beta` to scripts and commands, overriding inherited
 values and values passed with `-e` or `--env-file`. Since the file synchronizes
-to both endpoints, use this variable for setup that differs between them:
+to both endpoints, use this variable for setup that differs between them. In a
+tree, the file reaches every node, and an internal node's alpha/beta role
+depends on which edge carries the command, so branch on `MUTAGEN_REMOTE_NODE`
+with the configured node names instead (see [nodes.md](nodes.md)):
 
 ```sh
 # .remote-prologue.sh at the synchronization root
