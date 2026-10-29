@@ -34,10 +34,12 @@ prevent the job from starting. Use `--wait` or background synchronization for
 its later results.
 
 `--no-flush` skips both path synchronizations and their checks, so a command
-runs even while path edges have conflicts, and its changes return through
-background synchronization. As for pairs, use it only for commands that read
-and write no synced files, such as `nvidia-smi` or reading an ignored log; this
-also inspects a target while a conflict refuses other commands. The tree must
+runs even while path edges have conflicts. It neither synchronizes nor waits
+for synchronization; background synchronization continues, but conflicts,
+paused or disconnected edges, or disabled watching can keep its changes from
+propagating. As for pairs, use it only for commands that read and write no
+synced files, such as `nvidia-smi` or reading an ignored log; this also
+inspects a target while a conflict refuses other commands. The tree must
 still be valid and the path connected.
 
 If synchronization back fails after execution, `remote` returns 125 and reports
