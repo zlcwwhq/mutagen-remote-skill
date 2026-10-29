@@ -156,8 +156,8 @@ synchronizes the path in reverse. Conflicts/problems prevent execution;
 failure to synchronize back returns 125 even if the command succeeded. Use
 `remote --node <target> --conflicts` to inspect a path, and resolve from an
 edge's endpoint with `--node <peer>`. Job/file operations and conflict changes
-require adjacent nodes. Tree detached job starts also require strict preflight;
-neither foreground commands nor detached job starts accept `--no-flush`.
+require adjacent nodes. Tree detached job starts also require strict preflight.
+`--no-flush` skips these synchronizations and their conflict checks.
 Changing an unrelated, valid branch doesn't interrupt a running tree command
 unless it closes the submission connection. Changing its path or introducing
 a problem that makes the path unsafe interrupts it.

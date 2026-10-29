@@ -27,11 +27,18 @@ and migrate selectors to `--node`. Session identifiers stay internal.
 For foreground commands/scripts in a tree, the daemon synchronizes the unique
 source-to-target path, executes directly on the target, then synchronizes in
 reverse. Any conflict, scan/transition problem, or failed preflight prevents
-execution. `--no-flush` is rejected. Other branches needn't finish for this
-invocation. This isn't a snapshot or isolation from concurrent writers.
-Tree `--detach` also requires strict preflight on its adjacent edge; conflicts
-or synchronization failures prevent the job from starting. It rejects
-`--no-flush`. Use `--wait` or background synchronization for its later results.
+execution. Other branches needn't finish for this invocation. This isn't a
+snapshot or isolation from concurrent writers. Tree `--detach` also requires
+strict preflight on its adjacent edge; conflicts or synchronization failures
+prevent the job from starting. Use `--wait` or background synchronization for
+its later results.
+
+`--no-flush` skips both path synchronizations and their checks, so a command
+runs even while path edges have conflicts, and its changes return through
+background synchronization. As for pairs, use it only for commands that read
+and write no synced files, such as `nvidia-smi` or reading an ignored log; this
+also inspects a target while a conflict refuses other commands. The tree must
+still be valid and the path connected.
 
 If synchronization back fails after execution, `remote` returns 125 and reports
 the command's exit status and failed edge. **The command already ran.** Timeout
@@ -76,7 +83,7 @@ Don't retry: tell the user the reported problem; applying the project again
 usually repairs it. Meanwhile, operations on adjacent nodes still work over
 connected edges (`adjacent` in JSON): `--jobs`, `--wait`, `--kill`,
 conflicts, `--diff`, `--pull`, `--flush`, and `--ignores`. Starting a new detached
-job still requires strict preflight. Use these operations
+job still fails, even with `--no-flush`. Use these operations
 to check on running jobs or resolve conflicts, not to run work that relies on
 synchronization along the rest of the tree. `--node` stays required when the
 graph lists more than one other node.
