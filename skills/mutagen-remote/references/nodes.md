@@ -44,8 +44,11 @@ conflicts produce warnings rather than preventing commands, and detached jobs,
 `--no-flush`, `--flush`, `--pull`, `--diff`, `--ignores`, `--progress`, and
 conflict resolution work as they do for pairs. An operation depends only on
 its own edge: pausing, replacing, removing, or adding other nodes doesn't
-affect it. Keep the same `--node` for a job's start, wait, and kill, and for
-every conflict operation.
+affect it, and no operation uses another edge. While a node's edge isn't
+connected at the center, such as while it reconnects, `--nodes` shows the node
+as unavailable and operations on it fail with 255; retry after a few seconds.
+Keep the same `--node` for a job's start, wait, and kill, and for every
+conflict operation.
 
 - Each non-center node's mode configures its own edge, shown by `--nodes`.
   The center is alpha on every edge, so it wins conflicts in
