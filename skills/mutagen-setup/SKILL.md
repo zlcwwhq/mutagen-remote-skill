@@ -104,7 +104,10 @@ Keep `/mutagen.yml.lock` ignored: `mutagen` keeps that file next to
 `.gitignore`. Session names start with a letter and contain only letters,
 digits, and dashes; `remote` shows them in warnings and accepts them with `-s`.
 [configuration.md](references/configuration.md) covers endpoint URLs, modes,
-ignores, prologues, and several sessions.
+ignores, prologues, several sessions, and workspace trees. For three or more
+workspaces with named command targets, use its tree configuration: one daemon
+manages the tree and `tree.remote: true` grants execution between all nodes.
+Confirm that this broader command authorization matches the user's intent.
 
 ## 6. Start or update the sessions
 
@@ -127,6 +130,9 @@ Then check remote commands from the project directory: `remote pwd` prints
 beta's directory, and `remote --sessions` lists the sessions connected for
 remote commands. Command channels connect shortly after the session, so retry
 `not connected for remote commands` for a few seconds.
+For a tree, check `remote --node <name> pwd` for each intended target instead.
+Only retry this read-only check while channels connect, not arbitrary commands
+whose execution status is uncertain.
 
 ## 7. Prepare the endpoints for agents
 

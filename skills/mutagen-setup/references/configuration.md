@@ -93,6 +93,67 @@ Prologues aren't supported on Windows endpoints.
   each with its own name; `remote` uses the session created first and selects
   others with `-s <name>`.
 
+## Workspace trees
+
+On versions with `remote --help nodes`, one project can declare a tree of
+directory workspaces. All endpoints must be reachable from the same daemon:
+
+```yaml
+tree:
+  remote: true
+  sync:
+    mode: two-way-safe
+    ignore:
+      vcs: true
+      paths: ["/mutagen.yml.lock", ".venv/", "__pycache__/"]
+  nodes:
+    local:
+      endpoint: "."
+    server:
+      endpoint: "server:~/project"
+      parent: local
+    gpu:
+      endpoint: "gpu:~/project"
+      parent: server
+      remotePrologue: "~/.config/gpu-prologue.sh"
+```
+
+There must be at least two nodes, exactly one root without a parent, and one
+parent for each remaining node, with no cycles. Node names start with an ASCII
+letter, contain letters, digits, or dashes, end with a letter or digit, and are
+at most 63 characters; `defaults` is reserved. The root is structural and has
+no priority in conflict resolution. Nodes represent directories, not whole
+machines. Reject overlapping node directories and extra sessions overlapping
+tree workspaces, even in another project. Host aliases and remote symlinks must
+not give the same workspace multiple identities.
+
+The project generates pair sessions named `tree-<child>`. Existing unchanged
+edges retain their histories on `project apply`; changed edges are recreated
+as usual. Membership persists across daemon restarts. Shared settings under
+`tree.sync` extend global and `sync.defaults` settings, but only `two-way-safe`
+is accepted. Pair-specific endpoint defaults don't apply to nodes. Set each
+node's prologue there, and use `MUTAGEN_REMOTE_NODE` in shared scripts instead
+of alpha/beta roles, which depend on the incident edge.
+
+`tree.remote: true` explicitly authorizes commands **between all nodes**, not
+just parent and child. It defaults to false regardless of pair defaults.
+Confirm this authorization in the setup plan. Parents define synchronization
+edges, not SSH jump hosts; configure daemon connectivity to each endpoint.
+
+After previewing and applying the project, run from a node's directory:
+
+```sh
+remote --node gpu --timeout 30s pwd
+```
+
+This synchronizes the source-to-target path, executes on the target, then
+synchronizes the path in reverse. Conflicts/problems prevent execution;
+failure to synchronize back returns 125 even if the command succeeded. Use
+`--session tree-<child>` on an edge's endpoint for its conflict operations.
+Only foreground commands and scripts support `--node`; detached jobs and
+`--no-flush` do not. The tree doesn't provide writer isolation or whole-tree
+atomic synchronization. See `remote --help nodes` for operational details.
+
 ## Changing the configuration later
 
 Edit `mutagen.yml`, then preview and apply as in the main workflow:

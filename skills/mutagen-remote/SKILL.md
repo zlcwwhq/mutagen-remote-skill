@@ -14,6 +14,12 @@ its changes are present locally when it returns. Use only `remote`: the
 to manage. If the user asks to set up or change sessions, use the
 `mutagen-setup` skill.
 
+For a project workspace tree, use `remote --node <name> <command>` to select
+another node, including one beyond an adjacent session. Read
+[nodes.md](references/nodes.md) first: this mode requires successful path
+synchronization and supports foreground commands and scripts only. Check
+`remote --help nodes` to confirm that the installed version supports it.
+
 - **Your shell runs first.** Variables, globs, `~`, pipes, and `&&` are
   processed locally, so `remote echo $HOME` prints the local home. For shell
   code, pass a script on standard input, which needs no escaping:
