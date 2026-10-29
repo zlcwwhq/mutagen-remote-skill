@@ -191,9 +191,13 @@ releases used for workspace trees. With the user's consent:
    naming a node, usually the former root, where the user works. Settings
    under `tree.sync` move to `star.sync`.
 2. Preview with `mutagen project apply --dry-run`, then apply. This removes
-   the `tree-<node>` sessions, flushing running ones first, and creates
-   `star-<node>` sessions, which start with fresh synchronization history, so
-   prepare as for a first synchronization (step 4 of the main workflow).
+   the `tree-<node>` sessions and creates `star-<node>` sessions, which start
+   with fresh synchronization history, so prepare as for a first
+   synchronization (step 4 of the main workflow). The migration relies on
+   `apply` first flushing the running tree sessions together, repeatedly,
+   until changes such as deletions have reached every node; paused sessions
+   aren't flushed, so if the plan notes a paused `tree-<node>` session,
+   resume it (with the user's consent) before applying.
 3. Tell the user that commands between two non-center nodes no longer exist,
    and that star commands warn about conflicts instead of refusing to run.
 
