@@ -366,7 +366,7 @@ side doesn't need the repository, suggest that the user set `ignore.vcs: true`.
 ## Execution paths and missing local outputs
 
 `remote --nodes` reads daemon metadata for node hosts, roots, paths, and
-connection availability. It neither executes commands nor synchronizes files.
+availability. It neither executes commands nor synchronizes files.
 `~/` is the target user's home. Use `remote --node <name> pwd` to resolve its
 execution directory; this performs normal synchronization and execution.
 

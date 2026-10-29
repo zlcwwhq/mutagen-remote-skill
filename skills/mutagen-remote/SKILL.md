@@ -5,8 +5,8 @@ description: Run commands on the other side of a Mutagen synchronization session
 
 # Running commands with `remote`
 
-Use `remote --nodes` to discover the current workspace's nodes and connection
-availability, then `remote --node <name> <command> [args...]` to run on the
+Use `remote --nodes` to discover the current workspace's nodes and whether
+each is available, then `remote --node <name> <command> [args...]` to run on the
 chosen node in the corresponding directory. Omit the name only when there is
 exactly one other node. Ordinary pairs expose `alpha` and `beta`; declared
 stars use their configured names. Use only `remote`: endpoint systems may
@@ -20,7 +20,8 @@ star problems. `--nodes` is read-only; availability is not a synchronization
 guarantee. `--session`, `-s`, `--sessions`, and the exported
 `MUTAGEN_REMOTE_SESSION` are deprecated and rejected; unset the variable and
 select nodes explicitly. Check the installed `remote --help` before using new
-options. Add the same `--node` to subsequent job and file operations.
+options. Add the same `--node` to subsequent job and file operations; the
+commands that `remote` suggests include it.
 
 - **Your shell runs first.** Variables, globs, `~`, pipes, and `&&` are
   processed locally, so `remote echo $HOME` prints the local home. For shell

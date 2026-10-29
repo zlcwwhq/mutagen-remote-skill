@@ -3,8 +3,9 @@
 Run `remote --nodes` (or `--nodes --json`) from the source workspace. It lists
 the nodes that the current node can reach, including paused or disconnected
 ones, marks the current node and a star's center, and shows each node's host,
-root, the synchronization mode of the edge to it, and connection availability.
-It never flushes or executes a command. A target shown as available can still
+root, the synchronization mode of the edge to it, and availability: a node is
+available when it executes commands and its edge is connected at both ends. It
+never flushes or executes a command. A target shown as available can still
 have conflicts or fail synchronization.
 
 ```sh
