@@ -48,7 +48,7 @@ options. Add the same `--node` to subsequent job and file operations.
   they start: a job ends when its command exits.
 - **Keep synchronization enabled.** A skipped flush silently runs outdated
   code, while an extra one only costs a rescan (well under a second for most
-  trees). Use `--no-flush` only for commands that read and write no synced
+  projects). Use `--no-flush` only for commands that read and write no synced
   files, such as `nvidia-smi`; if you edited anything or aren't sure, flush.
   If synchronizing is slow, add `--progress`: its final `remote: synchronized
   in ...` line says where the time went.

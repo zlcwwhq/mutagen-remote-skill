@@ -42,8 +42,10 @@ Every operation crosses exactly one edge, which is an ordinary pair session,
 and behaves as for a pair: the edge is flushed before and after commands,
 conflicts produce warnings rather than preventing commands, and detached jobs,
 `--no-flush`, `--flush`, `--pull`, `--diff`, `--ignores`, `--progress`, and
-conflict resolution work as they do for pairs. Keep the same `--node` for a
-job's start, wait, and kill, and for every conflict operation.
+conflict resolution work as they do for pairs. An operation depends only on
+its own edge: pausing, replacing, removing, or adding other nodes doesn't
+affect it. Keep the same `--node` for a job's start, wait, and kill, and for
+every conflict operation.
 
 - Each non-center node's mode configures its own edge, shown by `--nodes`.
   The center is alpha on every edge, so it wins conflicts in
@@ -67,8 +69,9 @@ job's start, wait, and kill, and for every conflict operation.
 
 If `--nodes` prints `Star problem:` (JSON `problem`), the star's sessions
 disagree on the center's endpoint, for example after a partially applied
-project. Every operation from the center then fails with 125, whatever the
-target, while the other nodes keep using their own edges to the center. Don't
-retry: tell the user the reported problem; applying the project again usually
-repairs it. A terminated edge only removes its node: `--nodes` no longer
-lists it, and selecting it fails as an unknown node.
+project. Every new operation from the center then fails with 125, whatever
+the target, while operations already in progress and the other nodes keep
+using their own edges. Don't retry: tell the user the reported problem;
+applying the project again usually repairs it. A terminated edge only removes
+its node: `--nodes` no longer lists it, and selecting it fails as an unknown
+node.
