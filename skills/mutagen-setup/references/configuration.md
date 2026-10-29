@@ -129,10 +129,15 @@ not give the same workspace multiple identities.
 
 The project generates pair sessions named `tree-<child>`. Existing unchanged
 edges retain their histories on `project apply`; changed edges are recreated
-as usual. Membership persists across daemon restarts. Shared settings under
-`tree.sync` extend global and `sync.defaults` settings, but only `two-way-safe`
-is accepted. Pair-specific endpoint defaults don't apply to nodes. Set each
-node's prologue there, and use `MUTAGEN_REMOTE_NODE` in shared scripts instead
+as usual. Each edge records its membership itself, not in labels, so it
+persists across daemon restarts; `mutagen sync list -l` shows it.
+When a node has retained edges, new or replaced edges reuse that node's retained
+endpoint, including its captured Docker environment, to preserve its identity.
+Shared settings under `tree.sync` extend global and `sync.defaults` settings,
+but only `two-way-safe` is accepted. Pair-specific endpoint defaults don't
+apply to nodes, and neither does `remotePrologue` from global or project
+defaults. Set each node's
+prologue there, and use `MUTAGEN_REMOTE_NODE` in shared scripts instead
 of alpha/beta roles, which depend on the incident edge.
 
 `tree.remote: true` explicitly authorizes commands **between all nodes**, not
@@ -151,7 +156,12 @@ synchronizes the path in reverse. Conflicts/problems prevent execution;
 failure to synchronize back returns 125 even if the command succeeded. Use
 `remote --node <target> --conflicts` to inspect a path, and resolve from an
 edge's endpoint with `--node <peer>`. Job/file operations and conflict changes
-require adjacent nodes. Tree foreground commands reject `--no-flush`. The tree
+require adjacent nodes. Tree detached job starts also require strict preflight;
+neither foreground commands nor detached job starts accept `--no-flush`.
+Changing an unrelated, valid branch doesn't interrupt a running tree command
+unless it closes the submission connection. Changing its path or introducing
+a problem that makes the path unsafe interrupts it.
+The tree
 doesn't provide writer isolation or whole-tree atomic synchronization. See `remote --help nodes` for operational details.
 
 ## Changing the configuration later

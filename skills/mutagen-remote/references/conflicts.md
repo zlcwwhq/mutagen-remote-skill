@@ -157,12 +157,19 @@ Conflict operations accept several paths, with options before them, so that
 many conflicts can be resolved the same way at once, such as
 `remote --conflict-apply --take local <path>...` with automatic checkout when
 needed.
-`--json` prints results as JSON: the listing as `{"Conflicts": [{"Path",
+`--conflicts --json` always returns `{"edges": [...]}`, including for a
+single pair. Each edge names `alpha`, `beta`, its traversal `source` and
+`target`, and a `listing`. That listing has the form `{"Conflicts": [{"Path",
 "Resolvable", "Files", "Take", "CheckedOut", "Changed", "Applied"}],
 "Pending": [{"Path", "Applied", "Workspace"}], "RemotePending":
 [<path>...]}`, where `CheckedOut` is `"local"` or `"remote"` (checked out
 through the other side) for checked-out conflicts. `LocalChanges` and
-`RemoteChanges` describe actual changes relative to the submitting endpoint;
+`RemoteChanges` describe actual changes on the edge's `source` and `target`;
+these can be intermediate nodes on a multi-edge path. Local merge workspaces
+are inspected only on the edge adjacent to the submitting node.
+`Problems` preserves scan and transition problems. `Checkouts` records each
+checkout's `Path` and owning `Node`, including on intermediate nodes where the
+local merge workspace cannot be inspected.
 `ExcludedChanges` counts omitted changes in a bounded summary. Text listings
 describe at most five changes per side for each conflict and count the rest,
 so use `--json` to see more of them. `Changed` marks local checkouts whose copies changed since checkout, `Applied` marks partially

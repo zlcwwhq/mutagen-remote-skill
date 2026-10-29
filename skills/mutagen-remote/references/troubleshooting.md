@@ -7,7 +7,7 @@ what to change.
 
 Remote's own invalid input, refused operations, and file access failures return
 125; fix the reported cause before retrying. Connection setup, disconnects,
-protocol failures, and unreachable sessions return 255 and may be retryable.
+protocol failures, and unreachable nodes return 255 and may be retryable.
 Timeout remains 124; directory/prologue/startup failures are 126, and missing
 commands are 127. `--diff`/`--ignores` use 1 only for their result, not failure.
 Command and completed job statuses are passed through, including 125 and 255,
@@ -20,7 +20,7 @@ so the status alone cannot always identify whether remote failed.
   isn't on `PATH`.
 - `remote --flush` checks routing and synchronization without running a
   command.
-- `remote --help <topic>` documents sessions, synchronization, environment
+- `remote --help <topic>` documents nodes, synchronization, environment
   setup, termination, and conflicts in detail.
 
 ## Error messages
@@ -31,6 +31,8 @@ so the status alone cannot always identify whether remote failed.
 | `ambiguous source node` (125) | Independent workspace graphs overlap, or outside roots there is more than one source | Enter an unambiguous source root; ask for a tree configuration if pairs share a root |
 | `multiple destination nodes` (125) | The graph contains more than one peer, including offline ones | Choose explicitly with `--node NAME` |
 | `unknown node` (125) / `node ... unavailable` (255) | The name isn't configured, or its path isn't connected | Inspect `--nodes`; correct the name or ask the user to restore the reported edge |
+| `tree commands are unavailable until the workspace tree is repaired` (125) | A tree edge was terminated, failed to load, or was only partly applied, or another session overlaps a node; `--nodes` shows it as `Tree problem:` | Tell the user the problem; reapplying the project usually repairs it. Existing job control, conflicts, and other operations on adjacent nodes still work meanwhile; new detached jobs require strict preflight (see [nodes.md](nodes.md#tree-problems)) |
+| `this operation requires an adjacent node` (125) | Jobs, `--detach`, conflict changes, diff/pull, and `--flush` only reach a neighbor | Run from the target's neighbor, or use a foreground tree command |
 | `no connected node contains ...` (255) | No source workspace is connected for commands | Enter a workspace root, or ask the user to restore its connection |
 | `unable to connect to session ...: dial unix ...: connect: operation not permitted` (255) | A sandbox around your commands blocks Unix sockets, such as Codex's `workspace-write` sandbox without network access | Request to run `remote` outside the sandbox, or ask the user to allow it (for Codex, `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`) |
 | `<alpha\|beta> is not connected for remote commands` (255) | Session just started or is reconnecting | Retry after a few seconds; if it persists, tell the user |
@@ -47,7 +49,7 @@ so the status alone cannot always identify whether remote failed.
 | `is checked out through the opposite endpoint` (125) | The conflict was checked out from the other side, which alone can apply or discard it | Leave it and its paths alone; if it seems abandoned, ask the user to discard it on that side (`remote --conflict-discard <path>`) |
 | `is already checked out in <dir>` (125) | The conflict has a workspace on this side, which may be another agent's or the user's resolution in progress | If you checked it out, do what the message says; otherwise leave it, or ask the user |
 | `no job <id> exists on this endpoint` (125) | Wrong ID, or the job ended more than 7 days ago | `remote --jobs` lists the jobs |
-| `job <id> was started at another synchronization root` (125) | The job belongs to another session's root on that system | Run from inside that session's root, or select it with `-s` |
+| `job <id> was started at another synchronization root` (125) | The job belongs to another workspace's root on that system | Run from inside the workspace that started it, with the same `--node` |
 | `job <id> ended without recording its exit status` (125 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
 | `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected. With `--tail N`, the last N lines so far were printed first | Wait or poll again, or `remote --kill <id>` |
 | `warning: unable to follow the log of job <id>: the executing endpoint doesn't support following logs` | The other side runs an older Mutagen | The wait continues (with `--tail N`, the last N lines are printed at the end); read progress with `remote tail -n 40 <log>` and tell the user an upgrade adds `--follow` |

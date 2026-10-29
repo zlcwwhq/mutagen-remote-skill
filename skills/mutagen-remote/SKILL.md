@@ -42,7 +42,8 @@ options. Add the same `--node` to subsequent job and file operations.
   also takes `--script -`. Don't hand-roll `nohup ... &`, `tail -f`, or
   polling loops, and have job scripts `wait` for any background processes
   they start: a job ends when its command exits.
-- **Keep synchronization enabled.** Tree foreground commands require it. For
+- **Keep synchronization enabled.** Tree foreground commands and detached job
+  starts require strict preflight; conflicts prevent execution. For
   an implicit pair, a skipped flush silently runs outdated
   code, while an extra one only costs a rescan (well under a second for most
   trees). Use `--no-flush` only for commands that read and write no synced
