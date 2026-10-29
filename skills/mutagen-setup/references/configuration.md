@@ -128,9 +128,15 @@ another system works too; the daemon then relays its edges as it relays a pair
 whose endpoints are both remote. Node names start with an ASCII letter,
 contain letters, digits, or dashes, end with a letter or digit, and are at
 most 63 characters; `defaults` is reserved. Nodes represent directories, not
-whole machines. Reject overlapping node directories and extra sessions
-overlapping star workspaces, even in another project. Host aliases and remote
-symlinks must not give the same workspace multiple identities.
+whole machines, and must not overlap one another, including the center: the
+daemon refuses such edges, and `project start` and `apply` refuse such
+declarations, as well as sessions in the same project file that overlap star
+workspaces. Sessions of other projects, or created with `mutagen sync create`,
+aren't checked; don't plan them to overlap star workspaces, since they behave
+like overlapping pairs: changes propagate through both sessions, and the most
+specific workspace containing a directory is the source for `remote`.
+Detection can't see through host aliases or remote symlinks, so they must not
+give the same workspace multiple identities.
 
 The project generates one pair session per non-center node, named
 `star-<node>`, with the center as alpha and the node as beta. Existing
@@ -171,8 +177,9 @@ Every command crosses one edge and behaves as for a pair: the edge is flushed
 before and after it, and conflicts produce warnings rather than preventing it.
 From another node, `remote pwd` runs on the center, and commands for another
 non-center node fail with 125, since stars have no multi-hop routes. If
-`remote --nodes` reports a star problem, the edges disagree on the center's
-endpoint, such as after a partially applied project: apply the project again.
+`remote --nodes` reports a star problem, the star's loaded edges disagree on
+the center's endpoint, which the daemon refuses when creating edges: with the
+user's consent, terminate the edge that disagrees and apply the project again.
 See `remote --help nodes` for operational details.
 
 ### Migrating from workspace trees

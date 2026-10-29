@@ -67,11 +67,11 @@ every conflict operation.
 
 ## Star problems
 
-If `--nodes` prints `Star problem:` (JSON `problem`), the star's sessions
-disagree on the center's endpoint, for example after a partially applied
-project. Every new operation from the center then fails with 125, whatever
-the target, while operations already in progress and the other nodes keep
-using their own edges. Don't retry: tell the user the reported problem;
-applying the project again usually repairs it. A terminated edge only removes
-its node: `--nodes` no longer lists it, and selecting it fails as an unknown
-node.
+If `--nodes` prints `Star problem:` (JSON `problem`), the star's loaded
+sessions disagree on the center's endpoint; the daemon refuses to create such
+edges. Every new operation from the center then fails with 125, whatever the
+target, while operations already in progress and the other nodes keep using
+their own edges. Don't retry: tell the user the reported problem; terminating
+the edge that disagrees and applying the project again repairs it. A
+terminated edge only removes its node: `--nodes` no longer lists it, and
+selecting it fails as an unknown node.
