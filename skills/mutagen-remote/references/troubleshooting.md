@@ -31,8 +31,11 @@ so the status alone cannot always identify whether remote failed.
 | `ambiguous source node` (125) | Independent workspace graphs overlap, or outside roots there is more than one source | Enter an unambiguous source root; ask for a tree configuration if pairs share a root |
 | `multiple destination nodes` (125) | The graph contains more than one peer, including offline ones | Choose explicitly with `--node NAME` |
 | `unknown node` (125) / `node ... unavailable` (255) | The name isn't configured, or its path isn't connected | Inspect `--nodes`; correct the name or ask the user to restore the reported edge |
-| `tree commands are unavailable until the workspace tree is repaired` (125) | A tree edge was terminated, failed to load, or was only partly applied, or another session overlaps a node; `--nodes` shows it as `Tree problem:` | Tell the user the problem; reapplying the project usually repairs it. Existing job control, conflicts, and other operations on adjacent nodes still work meanwhile; new detached jobs require strict preflight (see [nodes.md](nodes.md#tree-problems)) |
+| `tree commands are unavailable until the workspace tree is repaired` (125) | A tree edge was terminated, failed to load, or was only partly applied, or another session overlaps a node; `--nodes` shows it as `Tree problem:` | Tell the user the problem; reapplying the project usually repairs it. Existing job control, conflicts, and other operations on adjacent nodes still work meanwhile; new detached jobs can't start, even with `--no-flush` (see [nodes.md](nodes.md#tree-problems)) |
 | `this operation requires an adjacent node` (125) | Jobs, `--detach`, conflict changes, diff/pull, and `--flush` only reach a neighbor | Run from the target's neighbor, or use a foreground tree command |
+| `command not started: edge <a> <-> <b> has unsynchronized content` (125) | A tree command's preflight found a conflict or problem on that path edge; tree commands fail instead of warning | Inspect with the command that the message gives, and resolve from an endpoint of that edge (see [nodes.md](nodes.md) and [conflicts.md](conflicts.md)); don't retry until then. Commands that read and write no synced files, such as `nvidia-smi`, can run meanwhile with `--no-flush` |
+| `..., but synchronization back failed: ...` (125) | A tree command ran, with the reported status, but an edge failed to synchronize back | **The command already ran**: don't rerun side effects. Fix the reported edge as above, then check that its outputs arrived |
+| `tree route was interrupted` / `workspace tree topology changed` / `tree endpoint disconnected` (255) | A path edge was paused, replaced, or disconnected, or the tree changed, during a tree command. After `tree route was interrupted`, the command may have run without its changes synchronized back | Check `remote --nodes`, and inspect the target before rerunning anything with side effects; if it persists, tell the user |
 | `no connected node contains ...` (255) | No source workspace is connected for commands | Enter a workspace root, or ask the user to restore its connection |
 | `unable to connect to session ...: dial unix ...: connect: operation not permitted` (255) | A sandbox around your commands blocks Unix sockets, such as Codex's `workspace-write` sandbox without network access | Request to run `remote` outside the sandbox, or ask the user to allow it (for Codex, `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`) |
 | `<alpha\|beta> is not connected for remote commands` (255) | Session just started or is reconnecting | Retry after a few seconds; if it persists, tell the user |
@@ -40,7 +43,7 @@ so the status alone cannot always identify whether remote failed.
 | `session ... is no longer connected for remote commands on this system` (255) | The session paused, reconnected, or was terminated after `remote` located it; `remote` doesn't switch to another session midway | Retry after a few seconds; if it persists, tell the user |
 | `the connection to the executing endpoint was lost ...` (255) | The session stopped synchronizing while the command ran (paused, reconnecting, replaced, or the daemon stopped), so the command was terminated: SIGTERM, then SIGKILL 5 seconds later | Files that it was writing may be incomplete. Once `remote --flush` succeeds, check them and rerun the command; run long commands with `--detach`. If it recurs, tell the user |
 | `registered by Mutagen X, but this is Mutagen Y` (255) | `remote` from a different Mutagen version, such as a `PATH` entry for an older agent after an upgrade | Use the `remote` installed with version X (on SSH and Docker endpoints, `~/.mutagen/agents/X/remote`); tell the user that the `mutagen-setup` skill installs a `remote` that follows upgrades |
-| `warning: unable to synchronize before/after the command` | The session stopped synchronizing during a flush, or `--timeout` expired | The command still ran; retry with `remote --flush`, and tell the user if it keeps failing |
+| `warning: unable to synchronize before/after the command` | The session stopped synchronizing during a flush, or `--timeout` expired (ordinary pairs; tree commands fail instead, as above) | The command still ran; retry with `remote --flush`, and tell the user if it keeps failing |
 | `synchronization stopped before the flush completed` (255 with `--flush`) | Same as above | Same as above |
 | `unable to find command` (127) | Not on the remote `PATH` | See "Commands missing from the remote environment" |
 | `remote: prologue <path> failed with exit status N` (126) | The prologue returned non-zero, had a syntax error, or exited | Inspect with `remote --no-prologue cat <path>`; repair a workspace override locally, preserving existing setup |
@@ -52,7 +55,7 @@ so the status alone cannot always identify whether remote failed.
 | `job <id> was started at another synchronization root` (125) | The job belongs to another workspace's root on that system | Run from inside the workspace that started it, with the same `--node` |
 | `job <id> ended without recording its exit status` (125 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
 | `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected. With `--tail N`, the last N lines so far were printed first | Wait or poll again, or `remote --kill <id>` |
-| `warning: unable to follow the log of job <id>: the executing endpoint doesn't support following logs` | The other side runs an older Mutagen | The wait continues (with `--tail N`, the last N lines are printed at the end); read progress with `remote tail -n 40 <log>` and tell the user an upgrade adds `--follow` |
+| `warning: unable to follow the log of job <id>: the executing endpoint doesn't support following logs` | The other side runs an older Mutagen | The wait continues (with `--tail N`, the last N lines are printed at the end); read progress with `remote --no-flush tail -n 40 <log>` and tell the user an upgrade adds `--follow` |
 | `warning: unable to follow the log of job <id>: ... is not a regular file` / `no such file or directory` / `was replaced since remote last read it` | The job logs to `/dev/null` or a device, or its log was deleted or replaced | Nothing; the wait continues and reports the job's status |
 | `warning: the log of job <id> became shorter than the N bytes followed so far` | The log was truncated, such as by log rotation or another job started with the same `--log` | Following restarts at the log's beginning; check `remote --jobs` for another job writing the same log |
 | `--timeout can't be combined with --detach` (125) | `--detach` returns as soon as the job starts | Limit the job itself: `remote --detach timeout 2h python train.py` |
@@ -104,7 +107,11 @@ with paths relative to the current directory:
   Otherwise, copy both versions somewhere outside the synced tree first, put
   the content you want in one copy (merging both sides' changes if needed),
   delete the other copy (`rm <path>` or `remote rm <path>`), and run
-  `remote --flush`. In one-way-safe sessions, put the content in alpha's copy
+  `remote --flush`. In a tree, the conflict refuses strict tree commands, so
+  work from an endpoint of the conflicting edge with `--node <peer>` on every
+  `remote` command, and add `--no-flush` to commands that read or change the
+  peer's copy, such as `remote --node <peer> --no-flush cat <path>` to back it
+  up and `... --no-flush rm <path>`. In one-way-safe sessions, put the content in alpha's copy
   and delete beta's: synchronization copies alpha's copy over a deleted beta
   copy, but leaves beta's copy unsynchronized if alpha's is deleted, and never
   copies beta's changes to alpha. Check the result with `remote --diff <path>`.
@@ -121,8 +128,8 @@ status 1 if any is ignored); `possibly synchronized` and `synchronized as
 <path> (through a symbolic link)` mean that the session may synchronize the
 path, so `--pull` refuses it. `remote --pull <path>...` copies ignored files,
 directories, or symbolic links from the other side, replacing local files that
-differ but never deleting local ones; read single files with `remote cat` if
-you don't need a local copy. It also refuses paths that another session on
+differ but never deleting local ones; read single files with
+`remote --no-flush cat` if you don't need a local copy. It also refuses paths that another session on
 this machine synchronizes, but it only knows sessions that are connected and
 run by this version of Mutagen or a later one, so don't pull into another
 project's synchronized directories. If outputs that the user wants locally are
@@ -190,7 +197,10 @@ Discover the executing side with
 `remote --no-prologue sh -c 'printf "%s\n" "$MUTAGEN_REMOTE_ENDPOINT"'`.
 `remote` supplies `alpha` or `beta` to scripts and commands, overriding inherited
 values and values passed with `-e` or `--env-file`. Since the file synchronizes
-to both endpoints, use this variable for setup that differs between them:
+to both endpoints, use this variable for setup that differs between them. In a
+tree, the file reaches every node, and an internal node's alpha/beta role
+depends on which edge carries the command, so branch on `MUTAGEN_REMOTE_NODE`
+with the configured node names instead (see [nodes.md](nodes.md)):
 
 ```sh
 # .remote-prologue.sh at the synchronization root
@@ -239,7 +249,7 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 - Jobs run where commands would, with the prologue and environment options,
   but without input. `--log` is relative to the command's directory; without
   it, the log is in the other side's Mutagen data directory, at the path that
-  `--jobs` shows (read it with `remote tail <path>`). `remote` warns if the
+  `--jobs` shows (read it with `remote --no-flush tail <path>`). `remote` warns if the
   log is ignored, and so not synchronized. The log must be a regular file or
   a character device such as `/dev/null`, not a FIFO.
 - `remote --kill` returns once every process in the job's process group has
@@ -258,8 +268,11 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 - `remote --wait "$id" --timeout 10m` bounds the wait (exit 124) without
   stopping the job. If the connection is lost while waiting, `remote` retries
   for a minute. `--wait` synchronizes afterwards, so the job's outputs are
-  local when it returns. With large outputs, add `--progress` to see that
-  synchronization.
+  normally local when it returns. Its status is still the job's if that
+  synchronization fails or leaves conflicts, so a successful job doesn't mean
+  that its outputs arrived: check `--wait`'s `remote:` warnings first (see
+  "Conflicts and unsynchronized content"). With large outputs, add
+  `--progress` to see that synchronization.
 - Add `--tail N` to `--wait` to print the final N log lines on standard
   output after the job ends, or, if `--timeout` expires while it runs, before
   exiting with 124. This reads the executing side's log directly, including

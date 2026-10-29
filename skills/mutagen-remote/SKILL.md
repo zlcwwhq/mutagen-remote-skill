@@ -32,7 +32,8 @@ options. Add the same `--node` to subsequent job and file operations.
 - **Long jobs run detached.** `id=$(remote --detach --log train.log python
   train.py)` starts a job that survives `remote` exiting and the session
   reconnecting, and prints its ID. `remote --wait "$id"` blocks until it ends,
-  synchronizes, and exits with its status; add `--tail 40` to also print the
+  synchronizes, and exits with its status, even if synchronization warns, so
+  heed its warnings before using outputs; add `--tail 40` to also print the
   last 40 log lines, including ignored logs. To watch a job, run
   `remote --wait "$id" --follow 2>&1` in the background or under a line-based
   monitor, filtered to the lines you need: it prints the log as it's written
@@ -43,11 +44,11 @@ options. Add the same `--node` to subsequent job and file operations.
   polling loops, and have job scripts `wait` for any background processes
   they start: a job ends when its command exits.
 - **Keep synchronization enabled.** Tree foreground commands and detached job
-  starts require strict preflight; conflicts prevent execution. For
-  an implicit pair, a skipped flush silently runs outdated
-  code, while an extra one only costs a rescan (well under a second for most
-  trees). Use `--no-flush` only for commands that read and write no synced
-  files, such as `nvidia-smi`; if you edited anything or aren't sure, flush.
+  starts require strict preflight; conflicts prevent execution. A skipped
+  flush silently runs outdated code, while an extra one only costs a rescan
+  (well under a second for most trees). Use `--no-flush` only for commands
+  that read and write no synced files, such as `nvidia-smi`; in a tree, it also
+  skips the conflict checks. If you edited anything or aren't sure, flush.
   If synchronizing is slow, add `--progress`: its final `remote: synchronized
   in ...` line says where the time went.
 - **Ignored paths aren't synced.** If a file that a command wrote is missing

@@ -40,7 +40,9 @@ Plain merged-file apply and `--delete` still require explicit checkout.
 To combine both sides manually:
 
 1. Run `remote --conflicts`. It synchronizes and lists every conflict, with
-   paths relative to the current directory. Conflicts that aren't between two
+   paths relative to the current directory. In a tree, run it from an
+   endpoint of the conflicting edge with `--node` selecting its peer (see
+   [nodes.md](nodes.md)). Conflicts that aren't between two
    files say which copies `--take` can keep. Lines marked as something remote
    can't resolve need the manual approach. Conflicts involving directories
    are rejected by checkout and apply; report these to the user. Conflicts
