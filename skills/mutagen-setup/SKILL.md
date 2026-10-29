@@ -131,9 +131,13 @@ synchronization history, so the plan's replacements behave like a first
 synchronization (step 4): before applying them, have the user stop processes
 that write synchronized files and resume paused sessions.
 
-From the project directory, query `remote --nodes` until the intended target
-is available; this readiness check is read-only and safe to retry while command
-channels connect. Then verify execution with `remote --node <name> pwd`.
+Query `remote --nodes` where commands are submitted, in the source's directory
+(alpha's for a pair, the center's for a star), until the intended target is
+available; this readiness check is read-only and safe to retry while command
+channels connect. The source is usually the project directory; if it's on
+another system, check there once `remote` is installed (step 7), as with
+`ssh <host> 'cd <path> && "$SHELL" -lc "remote --nodes"'`. Then verify
+execution with `remote --node <name> pwd`.
 For an ordinary pair the destination from alpha is `beta`; a star uses its
 configured names, and other nodes reach only its center. The execution check
 performs synchronization, so don't confuse it with discovery or automatically
