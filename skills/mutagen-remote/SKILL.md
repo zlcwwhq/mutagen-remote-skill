@@ -5,20 +5,19 @@ description: Run commands on the other side of a Mutagen synchronization session
 
 # Running commands with `remote`
 
-`remote <command> [args...]` runs a command on the other side of the Mutagen
-session containing the current directory (so `cd` into the synced tree), in the
-corresponding directory, and forwards stdio and the exit status. It
-synchronizes before and after the command, so the command sees your edits and
-its changes are present locally when it returns. Use only `remote`: the
-`mutagen` CLI may not be installed where you run, and sessions are the user's
-to manage. If the user asks to set up or change sessions, use the
-`mutagen-setup` skill.
+Use `remote --nodes` to discover the current workspace's nodes and connection
+availability, then `remote --node <name> <command> [args...]` to run on the
+chosen node in the corresponding directory. Omit the name only when there is
+exactly one other node. Ordinary pairs expose `alpha` and `beta`; declared
+trees use their configured names. Use only `remote`: endpoint systems may
+lack the `mutagen` CLI. Setup and topology changes belong to `mutagen-setup`.
 
-For a project workspace tree, use `remote --node <name> <command>` to select
-another node, including one beyond an adjacent session. Read
-[nodes.md](references/nodes.md) first: this mode requires successful path
-synchronization and supports foreground commands and scripts only. Check
-`remote --help nodes` to confirm that the installed version supports it.
+Read [nodes.md](references/nodes.md) for tree synchronization, path conflicts,
+and adjacent-operation limits. `--nodes` is read-only; availability is not a
+synchronization guarantee. `--session`, `-s`, `--sessions`, and the exported
+`MUTAGEN_REMOTE_SESSION` are deprecated and rejected; unset the variable and
+select nodes explicitly. Check the installed `remote --help` before using new
+options. Add the same `--node` to subsequent job and file operations.
 
 - **Your shell runs first.** Variables, globs, `~`, pipes, and `&&` are
   processed locally, so `remote echo $HOME` prints the local home. For shell
@@ -43,7 +42,8 @@ synchronization and supports foreground commands and scripts only. Check
   also takes `--script -`. Don't hand-roll `nohup ... &`, `tail -f`, or
   polling loops, and have job scripts `wait` for any background processes
   they start: a job ends when its command exits.
-- **Keep the default synchronization.** A skipped flush silently runs outdated
+- **Keep synchronization enabled.** Tree foreground commands require it. For
+  an implicit pair, a skipped flush silently runs outdated
   code, while an extra one only costs a rescan (well under a second for most
   trees). Use `--no-flush` only for commands that read and write no synced
   files, such as `nvidia-smi`; if you edited anything or aren't sure, flush.

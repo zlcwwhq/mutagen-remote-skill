@@ -102,7 +102,8 @@ sync:
 Keep `/mutagen.yml.lock` ignored: `mutagen` keeps that file next to
 `mutagen.yml` while the project runs. In a Git repository, also add it to
 `.gitignore`. Session names start with a letter and contain only letters,
-digits, and dashes; `remote` shows them in warnings and accepts them with `-s`.
+digits, and dashes. They identify internal synchronization edges; `remote`
+selects nodes, exposing an ordinary pair as `alpha` and `beta`.
 [configuration.md](references/configuration.md) covers endpoint URLs, modes,
 ignores, prologues, several sessions, and workspace trees. For three or more
 workspaces with named command targets, use its tree configuration: one daemon
@@ -126,13 +127,12 @@ synchronization history, so the plan's replacements behave like a first
 synchronization (step 4): before applying them, have the user stop processes
 that write synchronized files and resume paused sessions.
 
-Then check remote commands from the project directory: `remote pwd` prints
-beta's directory, and `remote --sessions` lists the sessions connected for
-remote commands. Command channels connect shortly after the session, so retry
-`not connected for remote commands` for a few seconds.
-For a tree, check `remote --node <name> pwd` for each intended target instead.
-Only retry this read-only check while channels connect, not arbitrary commands
-whose execution status is uncertain.
+From the project directory, query `remote --nodes` until the intended target
+is available; this readiness check is read-only and safe to retry while command
+channels connect. Then verify execution with `remote --node <name> pwd`.
+For an ordinary pair the destination from alpha is `beta`; a tree uses its
+configured names. The execution check performs synchronization, so don't
+confuse it with discovery or automatically retry commands with side effects.
 
 ## 7. Prepare the endpoints for agents
 
@@ -145,7 +145,7 @@ whose execution status is uncertain.
 
   ```sh
   ssh <host> 'mkdir -p ~/.local/bin && cat > ~/.local/bin/remote && chmod 755 ~/.local/bin/remote' < <skill-directory>/scripts/remote.sh
-  ssh <host> 'cd <path> && "$SHELL" -lc "remote --sessions"'
+  ssh <host> 'cd <path> && "$SHELL" -lc "remote --nodes"'
   ```
 
   For Docker, use `docker exec -i <container> sh -c '...'` instead of

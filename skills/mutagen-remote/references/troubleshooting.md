@@ -27,18 +27,17 @@ so the status alone cannot always identify whether remote failed.
 
 | Message | Cause | Fix |
 | --- | --- | --- |
-| `no connected session matching ...` (125) | The explicit `-s` name or ID doesn't select a registered session; it may also be paused or disconnected | Check `remote --sessions` and the spelling; if the expected session is absent, tell the user |
-| `no connected session with remote commands enabled contains <dir>` (255) | Outside every synced root, or the session is paused, disconnected, or doesn't execute commands on the other side (they can be enabled in one direction only) | `cd` into the synced directory (`remote --sessions` lists local roots, execution hosts/roots, and mapped working directories); otherwise tell the user |
+| `deprecated` (125) | An old session selector or environment variable was supplied | Unset `MUTAGEN_REMOTE_SESSION`; use `--nodes` and `--node NAME` |
+| `ambiguous source node` (125) | Independent workspace graphs overlap, or outside roots there is more than one source | Enter an unambiguous source root; ask for a tree configuration if pairs share a root |
+| `multiple destination nodes` (125) | The graph contains more than one peer, including offline ones | Choose explicitly with `--node NAME` |
+| `unknown node` (125) / `node ... unavailable` (255) | The name isn't configured, or its path isn't connected | Inspect `--nodes`; correct the name or ask the user to restore the reported edge |
+| `no connected node contains ...` (255) | No source workspace is connected for commands | Enter a workspace root, or ask the user to restore its connection |
 | `unable to connect to session ...: dial unix ...: connect: operation not permitted` (255) | A sandbox around your commands blocks Unix sockets, such as Codex's `workspace-write` sandbox without network access | Request to run `remote` outside the sandbox, or ask the user to allow it (for Codex, `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`) |
 | `<alpha\|beta> is not connected for remote commands` (255) | Session just started or is reconnecting | Retry after a few seconds; if it persists, tell the user |
-| `multiple sessions match ...` (125) | The name given with `-s` or `MUTAGEN_REMOTE_SESSION` is shared by the sessions listed in the message | Use a session identifier from the message |
-| `<dir> is synchronized by session X, not Y` (125) | `-s` selected a session whose roots don't contain the directory, which another session's root does: the command would run at the selected session's remote root, not in a corresponding directory | Drop `-s` to use the session containing the directory, or add `--cwd` to say where to run on the selected session's side |
 | `<dir> is ignored by session X` / `<dir> is inside <dir2>, which session X ignores` (125) | The session containing the directory doesn't synchronize it. Usually it's the root of a nested session that's paused or disconnected (or doesn't run commands from this side); sometimes it's a directory such as a build directory that exists separately on each side | The short error gives the ignored path (or ignored ancestor) and the session's unique name or ID. For a nested session, tell the user that it isn't running; don't work around it with `--cwd`, which would run in the enclosing session's unsynchronized copy. Only if the directory is meant to exist separately on the other side, add `--cwd .` |
-| `both endpoints of session ... are on this system` (125) | `--session` used outside both roots of a local session | Run from inside the root you want to submit from |
 | `session ... is no longer connected for remote commands on this system` (255) | The session paused, reconnected, or was terminated after `remote` located it; `remote` doesn't switch to another session midway | Retry after a few seconds; if it persists, tell the user |
 | `the connection to the executing endpoint was lost ...` (255) | The session stopped synchronizing while the command ran (paused, reconnecting, replaced, or the daemon stopped), so the command was terminated: SIGTERM, then SIGKILL 5 seconds later | Files that it was writing may be incomplete. Once `remote --flush` succeeds, check them and rerun the command; run long commands with `--detach`. If it recurs, tell the user |
 | `registered by Mutagen X, but this is Mutagen Y` (255) | `remote` from a different Mutagen version, such as a `PATH` entry for an older agent after an upgrade | Use the `remote` installed with version X (on SSH and Docker endpoints, `~/.mutagen/agents/X/remote`); tell the user that the `mutagen-setup` skill installs a `remote` that follows upgrades |
-| `warning: sessions X and Y both synchronize the current directory; using X` | Several sessions synchronize the directory, such as one directory synced to several machines, or nested roots; `remote` used the most specific root, then the session created first | Nothing, if X is the intended session (ask the user if unsure); otherwise add `-s <session>` with a session from the warning. `remote --sessions` shows their roots |
 | `warning: unable to synchronize before/after the command` | The session stopped synchronizing during a flush, or `--timeout` expired | The command still ran; retry with `remote --flush`, and tell the user if it keeps failing |
 | `synchronization stopped before the flush completed` (255 with `--flush`) | Same as above | Same as above |
 | `unable to find command` (127) | Not on the remote `PATH` | See "Commands missing from the remote environment" |
@@ -67,37 +66,23 @@ so the status alone cannot always identify whether remote failed.
 
 Statuses 128+N mean that the remote command was killed by signal N.
 
-## Which session and directory are used
+## Which node and directory are used
 
-`remote` uses the session whose root most specifically contains the current
-directory and runs commands in the corresponding remote directory, so prefer
-`cd`-ing into the synced tree. Among equally specific roots, such as one
-directory synced to several machines, it uses the session created first, and
-it warns whenever several sessions synchronize the directory. `remote pwd`
-shows where commands run, and `remote --sessions` lists the connected
-sessions, marking the one used by default and those whose roots contain the
-current directory.
+Use `remote --nodes` to discover the graph containing the current workspace,
+then `remote --node <name> pwd` to check an execution directory. Ordinary pairs
+expose alpha/beta; trees expose their configured names. With multiple peers,
+select a node explicitly. Availability doesn't select a destination.
 
-- `-s <name-or-id>` selects a session explicitly; prefer it for one-off
-  disambiguation. From outside the session's root, commands run at the root of
-  its opposite endpoint, or in `--cwd` (relative paths are resolved against
-  that root). From inside another session's root, `-s` naming a session whose
-  roots don't contain the directory fails unless `--cwd` is given.
-- `MUTAGEN_REMOTE_SESSION`, if exported, only chooses among the sessions whose
-  roots contain the current directory, and is ignored if none of them matches
-  it, so it never overrides the session containing the directory. Outside
-  every synced root, it selects a session as `-s` does.
-- `remote` can't find sessions that are paused, disconnected, or that don't run
-  commands submitted from this side. Inside the root of such a session nested
-  in another synced root, the enclosing session is used: if it ignores the
-  nested root, as it typically does, commands fail (see `... which session X
-  ignores` above); otherwise, they silently run in the enclosing session's copy
-  of the directory, and the flushes synchronize only the enclosing session. If
-  a nested session matters, pass `-s <nested>`, which fails instead while it's
-  unavailable, and tell the user if it isn't running.
-- `remote` locates the session once per invocation and uses it for the flushes
-  and the command, failing rather than switching sessions if it disconnects in
-  between.
+Independent pairs sharing one source root are ambiguous and should be declared
+as a tree. Outside all roots, an explicit node selection requires one
+unambiguous source workspace on this system. `--cwd` overrides the target
+working directory. See [nodes.md](nodes.md) for path synchronization and
+operation limits.
+
+Old `--session`, `-s`, `--sessions`, and `MUTAGEN_REMOTE_SESSION` selectors fail
+with a deprecated diagnostic. Unset the variable and use `--node`; don't retry
+with another session identifier. A call pins its target, and a failure never
+silently selects another node.
 
 ## Conflicts and unsynchronized content
 
@@ -168,7 +153,7 @@ under a monitor. The final line says where the time went, such as
 `--progress=false` turns it off. If the other side's Mutagen doesn't report
 phases, only the elapsed time is shown.
 
-For a session that synchronizes a single file, run `remote -s <name-or-id>
+For a session that synchronizes a single file, run `remote --node <peer>
 --diff` from outside its root, or pass the local file's absolute path after
 `--diff`. File/directory conflicts are supported: children beneath a file are
 treated as missing on that endpoint. Large reports may omit change details and
@@ -233,7 +218,7 @@ with prologues enabled again.
 Only the synchronization root is checked, including with `--cwd`; relative
 paths inside the script use the command's working directory. `--no-prologue`
 skips both workspace and configured scripts, as does submission from outside
-the root with `--session`. Prologues aren't supported on Windows endpoints.
+the roots with an explicit `--node` and one unambiguous source workspace. Prologues aren't supported on Windows endpoints.
 
 ## Detached jobs
 
@@ -368,11 +353,10 @@ side doesn't need the repository, suggest that the user set `ignore.vcs: true`.
 
 ## Execution paths and missing local outputs
 
-`remote --sessions` uses registered metadata for `runs on` and `cwd`; it runs no
-remote commands. `~/` is the executing user's home, and `unknown` means an older
-registration lacks the information. Use `remote pwd` to resolve an executing
-path. A directory outside the local root maps to the execution root only with
-an explicit selection; the list notes when `--cwd` is also required.
+`remote --nodes` reads daemon metadata for node hosts, roots, paths, and
+connection availability. It neither executes commands nor synchronizes files.
+`~/` is the target user's home. Use `remote --node <name> pwd` to resolve its
+execution directory; this performs normal synchronization and execution.
 
 Quote remote home paths, such as `remote -C '~/project' pwd`. If an absolute
 `-C` path under your local home is missing on the executor, remote suggests

@@ -89,9 +89,9 @@ Prologues aren't supported on Windows endpoints.
 - Several directories, such as code and a large dataset synchronized
   differently, take one session each. If one root is nested in another, ignore
   the nested root in the outer session.
-- One directory synchronized to several machines takes one session per machine,
-  each with its own name; `remote` uses the session created first and selects
-  others with `-s <name>`.
+- One directory synchronized to several machines should use a workspace tree,
+  so `remote --nodes` can discover named targets and `--node` can select one.
+  Independent pairs sharing a source root are ambiguous.
 
 ## Workspace trees
 
@@ -149,10 +149,10 @@ remote --node gpu --timeout 30s pwd
 This synchronizes the source-to-target path, executes on the target, then
 synchronizes the path in reverse. Conflicts/problems prevent execution;
 failure to synchronize back returns 125 even if the command succeeded. Use
-`--session tree-<child>` on an edge's endpoint for its conflict operations.
-Only foreground commands and scripts support `--node`; detached jobs and
-`--no-flush` do not. The tree doesn't provide writer isolation or whole-tree
-atomic synchronization. See `remote --help nodes` for operational details.
+`remote --node <target> --conflicts` to inspect a path, and resolve from an
+edge's endpoint with `--node <peer>`. Job/file operations and conflict changes
+require adjacent nodes. Tree foreground commands reject `--no-flush`. The tree
+doesn't provide writer isolation or whole-tree atomic synchronization. See `remote --help nodes` for operational details.
 
 ## Changing the configuration later
 
