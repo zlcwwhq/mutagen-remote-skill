@@ -52,10 +52,13 @@ cancel it unless they close the connection carrying the submission.
 No automatic rerouting or retry occurs.
 
 `remote --node <target> --conflicts` inspects a multi-edge path and identifies
-the actual adjacent node pair for each conflict. Paths are relative to those
-roots. To resolve `server <-> gpu`, operate from server with `--node gpu`, or
-from gpu with `--node server`, after reading [conflicts.md](conflicts.md).
-Do not treat copies separated by intermediate nodes as a resolvable pair.
+the actual adjacent node pair for each conflict. Paths on the first edge, which
+is adjacent, are relative to your current directory, as for pairs; paths on
+later edges are relative to their roots, so don't use them from here. To
+resolve `server <-> gpu`, operate from server with `--node gpu`, or from gpu
+with `--node server`: list the conflicts again there and use those paths, after
+reading [conflicts.md](conflicts.md). Do not treat copies separated by
+intermediate nodes as a resolvable pair.
 `--conflicts --json` always returns an `edges` array, even for an adjacent
 destination or implicit pair. Each entry contains `alpha`, `beta`, `source`,
 `target`, and `listing`. Local and remote changes in the listing belong to

@@ -55,7 +55,7 @@ so the status alone cannot always identify whether remote failed.
 | `job <id> was started at another synchronization root` (125) | The job belongs to another workspace's root on that system | Run from inside the workspace that started it, with the same `--node` |
 | `job <id> ended without recording its exit status` (125 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
 | `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected. With `--tail N`, the last N lines so far were printed first | Wait or poll again, or `remote --kill <id>` |
-| `warning: unable to follow the log of job <id>: the executing endpoint doesn't support following logs` | The other side runs an older Mutagen | The wait continues (with `--tail N`, the last N lines are printed at the end); read progress with `remote tail -n 40 <log>` and tell the user an upgrade adds `--follow` |
+| `warning: unable to follow the log of job <id>: the executing endpoint doesn't support following logs` | The other side runs an older Mutagen | The wait continues (with `--tail N`, the last N lines are printed at the end); read progress with `remote --no-flush tail -n 40 <log>` and tell the user an upgrade adds `--follow` |
 | `warning: unable to follow the log of job <id>: ... is not a regular file` / `no such file or directory` / `was replaced since remote last read it` | The job logs to `/dev/null` or a device, or its log was deleted or replaced | Nothing; the wait continues and reports the job's status |
 | `warning: the log of job <id> became shorter than the N bytes followed so far` | The log was truncated, such as by log rotation or another job started with the same `--log` | Following restarts at the log's beginning; check `remote --jobs` for another job writing the same log |
 | `--timeout can't be combined with --detach` (125) | `--detach` returns as soon as the job starts | Limit the job itself: `remote --detach timeout 2h python train.py` |
@@ -107,7 +107,11 @@ with paths relative to the current directory:
   Otherwise, copy both versions somewhere outside the synced tree first, put
   the content you want in one copy (merging both sides' changes if needed),
   delete the other copy (`rm <path>` or `remote rm <path>`), and run
-  `remote --flush`. In one-way-safe sessions, put the content in alpha's copy
+  `remote --flush`. In a tree, the conflict refuses strict tree commands, so
+  work from an endpoint of the conflicting edge with `--node <peer>` on every
+  `remote` command, and add `--no-flush` to commands that read or change the
+  peer's copy, such as `remote --node <peer> --no-flush cat <path>` to back it
+  up and `... --no-flush rm <path>`. In one-way-safe sessions, put the content in alpha's copy
   and delete beta's: synchronization copies alpha's copy over a deleted beta
   copy, but leaves beta's copy unsynchronized if alpha's is deleted, and never
   copies beta's changes to alpha. Check the result with `remote --diff <path>`.
@@ -124,8 +128,8 @@ status 1 if any is ignored); `possibly synchronized` and `synchronized as
 <path> (through a symbolic link)` mean that the session may synchronize the
 path, so `--pull` refuses it. `remote --pull <path>...` copies ignored files,
 directories, or symbolic links from the other side, replacing local files that
-differ but never deleting local ones; read single files with `remote cat` if
-you don't need a local copy. It also refuses paths that another session on
+differ but never deleting local ones; read single files with
+`remote --no-flush cat` if you don't need a local copy. It also refuses paths that another session on
 this machine synchronizes, but it only knows sessions that are connected and
 run by this version of Mutagen or a later one, so don't pull into another
 project's synchronized directories. If outputs that the user wants locally are
@@ -245,7 +249,7 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 - Jobs run where commands would, with the prologue and environment options,
   but without input. `--log` is relative to the command's directory; without
   it, the log is in the other side's Mutagen data directory, at the path that
-  `--jobs` shows (read it with `remote tail <path>`). `remote` warns if the
+  `--jobs` shows (read it with `remote --no-flush tail <path>`). `remote` warns if the
   log is ignored, and so not synchronized. The log must be a regular file or
   a character device such as `/dev/null`, not a FIFO.
 - `remote --kill` returns once every process in the job's process group has
@@ -264,8 +268,11 @@ remote --kill "$id"            # SIGTERM, then SIGKILL 5 seconds later
 - `remote --wait "$id" --timeout 10m` bounds the wait (exit 124) without
   stopping the job. If the connection is lost while waiting, `remote` retries
   for a minute. `--wait` synchronizes afterwards, so the job's outputs are
-  local when it returns. With large outputs, add `--progress` to see that
-  synchronization.
+  normally local when it returns. Its status is still the job's if that
+  synchronization fails or leaves conflicts, so a successful job doesn't mean
+  that its outputs arrived: check `--wait`'s `remote:` warnings first (see
+  "Conflicts and unsynchronized content"). With large outputs, add
+  `--progress` to see that synchronization.
 - Add `--tail N` to `--wait` to print the final N log lines on standard
   output after the job ends, or, if `--timeout` expires while it runs, before
   exiting with 124. This reads the executing side's log directly, including

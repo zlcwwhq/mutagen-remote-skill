@@ -32,7 +32,8 @@ options. Add the same `--node` to subsequent job and file operations.
 - **Long jobs run detached.** `id=$(remote --detach --log train.log python
   train.py)` starts a job that survives `remote` exiting and the session
   reconnecting, and prints its ID. `remote --wait "$id"` blocks until it ends,
-  synchronizes, and exits with its status; add `--tail 40` to also print the
+  synchronizes, and exits with its status, even if synchronization warns, so
+  heed its warnings before using outputs; add `--tail 40` to also print the
   last 40 log lines, including ignored logs. To watch a job, run
   `remote --wait "$id" --follow 2>&1` in the background or under a line-based
   monitor, filtered to the lines you need: it prints the log as it's written
