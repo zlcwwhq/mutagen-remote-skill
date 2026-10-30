@@ -105,10 +105,14 @@ Keep `/mutagen.yml.lock` ignored: `mutagen` keeps that file next to
 digits, and dashes. They identify internal synchronization edges; `remote`
 selects nodes, exposing an ordinary pair as `alpha` and `beta`.
 [configuration.md](references/configuration.md) covers endpoint URLs, modes,
-ignores, prologues, several sessions, and workspace trees. For three or more
-workspaces with named command targets, use its tree configuration: one daemon
-manages the tree and `tree.remote: true` grants execution between all nodes.
-Confirm that this broader command authorization matches the user's intent.
+ignores, prologues, several sessions, and star workspaces. For three or more
+workspaces with named command targets, use its star configuration: one daemon
+manages the star, whose center reaches every other node, and
+`star.remote: true` grants execution between the center and every other
+node. Confirm the center and this command authorization with the user. If an
+existing `mutagen.yml` declares `tree:`, migrate it as
+[configuration.md](references/configuration.md#migrating-from-workspace-trees)
+describes.
 
 ## 6. Start or update the sessions
 
@@ -127,12 +131,17 @@ synchronization history, so the plan's replacements behave like a first
 synchronization (step 4): before applying them, have the user stop processes
 that write synchronized files and resume paused sessions.
 
-From the project directory, query `remote --nodes` until the intended target
-is available; this readiness check is read-only and safe to retry while command
-channels connect. Then verify execution with `remote --node <name> pwd`.
-For an ordinary pair the destination from alpha is `beta`; a tree uses its
-configured names. The execution check performs synchronization, so don't
-confuse it with discovery or automatically retry commands with side effects.
+Query `remote --nodes` where commands are submitted, in the source's directory
+(alpha's for a pair, the center's for a star), until the intended target is
+available; this readiness check is read-only and safe to retry while command
+channels connect. The source is usually the project directory; if it's on
+another system, check there once `remote` is installed (step 7), as with
+`ssh <host> 'cd <path> && "$SHELL" -lc "remote --nodes"'`. Then verify
+execution with `remote --node <name> pwd`.
+For an ordinary pair the destination from alpha is `beta`; a star uses its
+configured names, and other nodes reach only its center. The execution check
+performs synchronization, so don't confuse it with discovery or automatically
+retry commands with side effects.
 
 ## 7. Prepare the endpoints for agents
 
@@ -175,6 +184,10 @@ When the user asks to upgrade, or `--check` reports `update available`:
    jobs keep running, except jobs on the daemon's system when the daemon runs as
    a systemd service). Get their consent, preferably once running commands have
    finished. Don't install an older release unless asked (`--version <tag>`).
+   If a project's `mutagen.yml` declares `tree:` and the release replaces
+   workspace trees with stars, include its migration in the plan (see
+   [configuration.md](references/configuration.md#migrating-from-workspace-trees)):
+   the new release refuses that file.
 2. Run `sh <skill-directory>/scripts/install.sh --restart-daemon`. It downloads
    and verifies the release first, then stops the daemon (or the systemd user
    service from [install.md](references/install.md#starting-the-daemon-at-login)),

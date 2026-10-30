@@ -89,80 +89,117 @@ Prologues aren't supported on Windows endpoints.
 - Several directories, such as code and a large dataset synchronized
   differently, take one session each. If one root is nested in another, ignore
   the nested root in the outer session.
-- One directory synchronized to several machines should use a workspace tree,
-  so `remote --nodes` can discover named targets and `--node` can select one.
+- One directory synchronized to several machines should use a star, so
+  `remote --nodes` can discover named targets and `--node` can select one.
   Independent pairs sharing a source root are ambiguous.
 
-## Workspace trees
+## Star workspaces
 
-On versions with `remote --help nodes`, one project can declare a tree of
-directory workspaces. All endpoints must be reachable from the same daemon:
+On versions whose `remote --help nodes` describes stars, one project can
+declare a star of directory workspaces: a center node joined to every other
+node by its own pair session. All endpoints must be reachable from the same
+daemon:
 
 ```yaml
-tree:
+star:
   remote: true
   sync:
-    mode: two-way-safe
     ignore:
       vcs: true
       paths: ["/mutagen.yml.lock", ".venv/", "__pycache__/"]
+  center: local
   nodes:
     local:
       endpoint: "."
     server:
       endpoint: "server:~/project"
-      parent: local
     gpu:
       endpoint: "gpu:~/project"
-      parent: server
+      mode: one-way-safe
       remotePrologue: "~/.config/gpu-prologue.sh"
 ```
 
-There must be at least two nodes, exactly one root without a parent, and one
-parent for each remaining node, with no cycles. Node names start with an ASCII
-letter, contain letters, digits, or dashes, end with a letter or digit, and are
-at most 63 characters; `defaults` is reserved. The root is structural and has
-no priority in conflict resolution. Nodes represent directories, not whole
-machines. Reject overlapping node directories and extra sessions overlapping
-tree workspaces, even in another project. Host aliases and remote symlinks must
-not give the same workspace multiple identities.
+`center` is required and names one of the nodes, and there must be at least one
+other node. Any node can be the center, with any endpoint type, but only the
+center reaches every node with `remote`; every other node reaches only the
+center. Choose the center with the user: usually where they work and their
+agents run, such as the project directory on the daemon's system. A center on
+another system works too; the daemon then relays its edges as it relays a pair
+whose endpoints are both remote. Node names start with an ASCII letter,
+contain letters, digits, or dashes, end with a letter or digit, and are at
+most 63 characters; `defaults` is reserved. Nodes represent directories, not
+whole machines, and must not overlap one another, including the center: the
+daemon refuses such edges, and `project start` and `apply` refuse such
+declarations, as well as sessions in the same project file that overlap star
+workspaces. Sessions of other projects, or created with `mutagen sync create`,
+aren't checked; don't plan them to overlap star workspaces, since they behave
+like overlapping pairs: changes propagate through both sessions, and the most
+specific workspace containing a directory is the source for `remote`.
+Detection can't see through host aliases or remote symlinks, so they must not
+give the same workspace multiple identities.
 
-The project generates pair sessions named `tree-<child>`. Existing unchanged
-edges retain their histories on `project apply`; changed edges are recreated
-as usual. Each edge records its membership itself, not in labels, so it
-persists across daemon restarts; `mutagen sync list -l` shows it.
-When a node has retained edges, new or replaced edges reuse that node's retained
-endpoint, including its captured Docker environment, to preserve its identity.
-Shared settings under `tree.sync` extend global and `sync.defaults` settings,
-but only `two-way-safe` is accepted. Pair-specific endpoint defaults don't
-apply to nodes, and neither does `remotePrologue` from global or project
-defaults. Set each node's prologue on the node, and use `MUTAGEN_REMOTE_NODE`
-in shared scripts, such as `.remote-prologue.sh`, instead of alpha/beta roles,
-which depend on the incident edge.
+The project generates one pair session per non-center node, named
+`star-<node>`, with the center as alpha and the node as beta. Existing
+unchanged edges retain their histories on `project apply`; changed edges are
+recreated as usual. Each edge records its membership itself, not in labels, so
+it persists across daemon restarts; `mutagen sync list -l` shows it. New or
+replaced edges reuse the center's endpoint from the retained edges, including
+its captured Docker environment, to preserve its identity. If retained edges
+disagree on it, `apply` fails and names them; with the user's consent,
+terminate one of them and apply again.
 
-`tree.remote: true` explicitly authorizes commands **between all nodes**, not
-just parent and child. It defaults to false regardless of pair defaults.
-Confirm this authorization in the setup plan. Parents define synchronization
-edges, not SSH jump hosts; configure daemon connectivity to each endpoint.
+Shared settings under `star.sync` extend global and `sync.defaults` settings,
+including ignores. A non-center node's `mode` sets the mode of its own edge,
+overriding `star.sync.mode` and the defaults; edges use `two-way-safe` if
+nothing sets a mode. `mode` can't be set on the center. The center is alpha on
+every edge, so it wins conflicts in `two-way-resolved` mode, and one-way modes
+flow from the center to the node: the node's changes, including command
+outputs, don't reach the center. Pair-specific endpoint defaults don't apply,
+and neither do `remote` and `remotePrologue` from global or project defaults,
+which `star.sync` can't set either. Set each node's prologue on the node,
+including the center's, and use `MUTAGEN_REMOTE_NODE` in shared scripts, such
+as `.remote-prologue.sh`, instead of alpha/beta roles.
 
-After previewing and applying the project, run from a node's directory:
+`star.remote: true` explicitly authorizes commands between the center and every
+other node, in both directions. It defaults to false regardless of pair
+defaults. Confirm this authorization, and the choice of center, in the setup
+plan. Configure daemon connectivity to each endpoint; nodes needn't reach each
+other.
+
+After previewing and applying the project, run from the center's directory:
 
 ```sh
+remote --nodes
 remote --node gpu --timeout 30s pwd
 ```
 
-This synchronizes the source-to-target path, executes on the target, then
-synchronizes the path in reverse. Conflicts/problems prevent execution;
-failure to synchronize back returns 125 even if the command succeeded. Use
-`remote --node <target> --conflicts` to inspect a path, and resolve from an
-edge's endpoint with `--node <peer>`. Job/file operations and conflict changes
-require adjacent nodes. Tree detached job starts also require strict preflight.
-`--no-flush` skips these synchronizations and their conflict checks.
-Changing an unrelated, valid branch doesn't interrupt a running tree command
-unless it closes the submission connection. Changing its path or introducing
-a problem that makes the path unsafe interrupts it. The tree doesn't provide
-writer isolation or whole-tree atomic synchronization. See
-`remote --help nodes` for operational details.
+Every command crosses one edge and behaves as for a pair: the edge is flushed
+before and after it, and conflicts produce warnings rather than preventing it.
+From another node, `remote pwd` runs on the center, and commands for another
+non-center node fail with 125, since stars have no multi-hop routes. If
+`remote --nodes` reports a star problem, the star's loaded edges disagree on
+the center's endpoint, which the daemon refuses when creating edges: with the
+user's consent, terminate the edge that disagrees and apply the project again.
+See `remote --help nodes` for operational details.
+
+### Migrating from workspace trees
+
+Releases with stars refuse project files that declare `tree:`, which earlier
+releases used for workspace trees. With the user's consent:
+
+1. Replace `tree:` with `star:`, remove each node's `parent`, and add `center:`
+   naming a node, usually the former root, where the user works. Settings
+   under `tree.sync` move to `star.sync`.
+2. Preview with `mutagen project apply --dry-run`, then apply. This removes
+   the `tree-<node>` sessions and creates `star-<node>` sessions, which start
+   with fresh synchronization history, so prepare as for a first
+   synchronization (step 4 of the main workflow). The migration relies on
+   `apply` first flushing the running tree sessions together, repeatedly,
+   until changes such as deletions have reached every node; paused sessions
+   aren't flushed, so if the plan notes a paused `tree-<node>` session,
+   resume it (with the user's consent) before applying.
+3. Tell the user that commands between two non-center nodes no longer exist,
+   and that star commands warn about conflicts instead of refusing to run.
 
 ## Changing the configuration later
 
