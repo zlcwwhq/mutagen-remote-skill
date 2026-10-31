@@ -123,7 +123,11 @@ on one side without a warning, it's probably ignored. `remote --ignores` lists
 the session's ignores, and `remote --ignores <path>...` checks paths (exit
 status 1 if any is ignored); `possibly synchronized` and `synchronized as
 <path> (through a symbolic link)` mean that the session may synchronize the
-path, so `--pull` refuses it. `remote --pull <path>...` copies ignored files,
+path, so `--pull` refuses it. In a Git-mode session, it also says what ignores
+a path: `by Git rules` (`.gitignore` files or `.git/info/exclude`, read from
+this side's copy), `Git mode never synchronizes .git entries`, or `inside
+submodule <dir>` (content that the session doesn't synchronize file by file).
+`remote --pull <path>...` copies ignored files,
 directories, or symbolic links from the other side, replacing local files that
 differ but never deleting local ones; read single files with
 `remote --no-flush cat` if you don't need a local copy. It also refuses paths that another session on
@@ -340,6 +344,45 @@ the script, and it can't run detached.
   lost connection above), but detached jobs keep running.
 
 ## Git on the other side
+
+A session in Git mode (`remote --ignores` lists "Git rules") never
+synchronizes `.git`, so the index problem below doesn't arise, but the other
+side has no repository for the project's root either:
+
+- `git` there fails with `not a git repository`, or, worse, reports the state
+  of a repository in a directory above the session's root. Compute what you
+  need locally and pass it in, as below.
+- Each submodule is a separate repository on each side, with its own `.git` that
+  isn't synchronized, so `git` works inside submodules on both sides, without
+  the index rewrites, but the sides only agree on their checked-out commits.
+  The session compares those and makes the other side fetch the commit from the
+  repository's URL, so the other side needs `git` 2.29 or newer, network access,
+  and read access to it. Tell the user if it has none: a fetch failure is
+  reported as a problem after the flush, the submodule stays at its old commit,
+  and the user must provide the code another way.
+- Uncommitted changes in a submodule never reach the other side, since only
+  the commit does. `remote` warns about them after the flush and still runs the
+  command, which then sees the committed state. If the command needs the
+  changes, tell the user to commit and push them, then `remote --flush`.
+- A commit that the other side can't fetch, such as one that isn't pushed, is
+  warned about too, and the submodule stays at its previous commit there until
+  it is pushed and a flush fetches it. Never push for the user without asking.
+- The session never deletes a submodule automatically: if it's gone from one
+  side, it reports a problem, and the user removes it from the other by hand.
+  A conflict that involves a submodule (different commits checked out on each
+  side, or a submodule against a file) can't be resolved with `remote`; tell
+  the user to check out the same commit on both sides, or to delete the
+  submodule on one.
+- Commands can run in a submodule's directory, since it exists on both sides.
+  Content beneath it isn't synchronized file by file, so `remote --pull
+  sub/build/out` copies it (as `remote --ignores sub/build/out` shows with
+  "inside submodule sub"), while `remote --pull sub` is refused: the session
+  synchronizes the submodule itself, so use `remote --flush` for that.
+- Tracked files that `.gitignore` ignores aren't synchronized; the side with
+  the repository reports a problem that names the pattern to unignore them.
+  Suggest it to the user rather than editing `mutagen.yml` yourself.
+
+The rest of this section is for sessions that synchronize `.git`.
 
 Mutagen doesn't synchronize modification times, so when `.git` is synchronized
 (the session doesn't set `ignore.vcs`), the index never matches the other

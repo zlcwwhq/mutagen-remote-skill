@@ -46,8 +46,10 @@ To combine both sides manually:
    selection on every command of the workflow (see [nodes.md](nodes.md)).
    Conflicts that aren't between two files say which copies `--take` can
    keep. Lines marked as something remote can't resolve need the manual
-   approach. Conflicts involving directories
-   are rejected by checkout and apply; report these to the user. Conflicts
+   approach. Conflicts involving directories or submodules
+   are rejected by checkout and apply; report these to the user (for a
+   submodule, the fix is to check out the same commit on both sides, or to
+   delete it on one). Conflicts
    checked out through the other side belong to whoever checked them out
    there: leave them alone, and ask the user if they seem abandoned. A
    conflict checked out here whose copy changed since checkout must be
