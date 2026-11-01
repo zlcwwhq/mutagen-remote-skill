@@ -171,7 +171,8 @@ and `target`, and contains the `listing`. That listing has the form
 "RemotePending": [<path>...]}`, where `CheckedOut` is `"local"` or `"remote"` (checked out
 through the other side) for checked-out conflicts. `LocalChanges` and
 `RemoteChanges` describe changes on the entry's `source` and `target`.
-`Problems` preserves scan and transition problems. `Checkouts` records each
+`Problems` preserves scan and transition problems, with `Warning` set on what
+isn't synchronized by design, which can't hide conflicts. `Checkouts` records each
 checkout's `Path` and owning `Node`.
 `ExcludedChanges` counts omitted changes in a bounded summary. Text listings
 describe at most five changes per side for each conflict and count the rest,

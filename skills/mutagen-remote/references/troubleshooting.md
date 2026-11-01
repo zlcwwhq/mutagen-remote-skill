@@ -119,13 +119,20 @@ with paths relative to the current directory:
   side if you can, or tell the user. These can hide conflicts: with nothing else
   to list, `remote --conflicts` then prints `Conflicts can't be ruled out` and
   exits with status 0, so it isn't the same as `No conflicts.`.
+- `this content isn't synchronized, by design`: a Git-mode session left the path
+  out on purpose, such as because of that side's own rules (see "Git on the
+  other side"). It doesn't affect commands, and `remote --conflicts` can still
+  print `No conflicts.`.
 
 Ignored paths are never synchronized and aren't reported; if a file is missing
 on one side without a warning, it's probably ignored. `remote --ignores` lists
 the session's ignores, and `remote --ignores <path>...` checks paths (exit
 status 1 if any is ignored); `possibly synchronized` and `synchronized as
 <path> (through a symbolic link)` mean that the session may synchronize the
-path, so `--pull` refuses it. `remote --pull <path>...` copies ignored files,
+path, so `--pull` refuses it. In a Git-mode session, it also says what ignores
+a path: `by Git rules` (`.gitignore` files or `.git/info/exclude`, read from
+this side's copy) or `Git mode never synchronizes .git entries`.
+`remote --pull <path>...` copies ignored files,
 directories, or symbolic links from the other side, replacing local files that
 differ but never deleting local ones; read single files with
 `remote --no-flush cat` if you don't need a local copy. It also refuses paths that another session on
@@ -342,6 +349,34 @@ the script, and it can't run detached.
   lost connection above), but detached jobs keep running.
 
 ## Git on the other side
+
+A session in Git mode (`remote --ignores` lists "Git rules") never
+synchronizes `.git`, so the index problem below doesn't arise, but the other
+side has no repository for the project's root either:
+
+- `git` there fails with `not a git repository`, or, worse, reports the state
+  of a repository in a directory above the session's root. Compute what you
+  need locally and pass it in, as below.
+- A nested repository, such as a submodule, is synchronized as an ordinary
+  directory, without its `.git`: its files reach the other side like any others,
+  while its commits and branches don't, and `--pull` refuses to write into it.
+- Tracked files that `.gitignore` ignores aren't synchronized; the side with
+  the repository reports a problem that names the pattern to unignore them.
+  Suggest it to the user rather than editing `mutagen.yml` yourself.
+- Each side applies its own rules to what it receives, including paths that it
+  doesn't have yet, so the `.git/info/exclude` of a repository on one side keeps
+  the other side's copies of what it excludes away. `remote` warns (`ignored by
+  this endpoint's own rules`): the path isn't written, while the rest of its
+  directory still arrives, and so do `.gitignore` files themselves. This is by
+  design and doesn't affect commands. If the file is needed on that side,
+  `remote --pull <path>` there copies it, or suggest the pattern in the warning
+  to the user. If that side already has the path, there's no warning, since the
+  session simply doesn't track it.
+- If a rule file can't be read, the session reports a problem, doesn't
+  synchronize that file's directory until it's fixed, and `--pull` refuses to
+  write there.
+
+The rest of this section is for sessions that synchronize `.git`.
 
 Mutagen doesn't synchronize modification times, so when `.git` is synchronized
 (the session doesn't set `ignore.vcs`), the index never matches the other
