@@ -376,7 +376,11 @@ side has no repository for the project's root either:
   submodule on one.
 - A checkout never overwrites ignored local files: Git refuses, the session
   reports a problem, and the submodule stays at its old commit until the user
-  moves the file that's in the way.
+  moves the file that's in the way. For a submodule nested in another, only the
+  nested one stays behind, the problem is reported once, and nothing tries again
+  until the outer submodule's commit changes. Tell the user to move the file and
+  then run `git submodule update --init --recursive` in the outer submodule, in
+  that order, because that command overwrites ignored files.
 - Commands can run in a submodule's directory, since it exists on both sides.
   Content beneath it isn't synchronized file by file, so `remote --pull
   sub/build/out` copies it (as `remote --ignores sub/build/out` shows with
