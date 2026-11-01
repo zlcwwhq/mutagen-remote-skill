@@ -40,7 +40,9 @@ Plain merged-file apply and `--delete` still require explicit checkout.
 To combine both sides manually:
 
 1. Run `remote --conflicts`. It synchronizes and lists every conflict, with
-   paths relative to the current directory. In a star, conflicts belong to
+   paths relative to the current directory. If it says that conflicts can't be
+   ruled out, fix what it warns about first, or tell the user: content that
+   couldn't be synchronized can hide conflicts. In a star, conflicts belong to
    the edge between the center and one node: work from the center with
    `--node` selecting that node, or from that node, and keep the same
    selection on every command of the workflow (see [nodes.md](nodes.md)).

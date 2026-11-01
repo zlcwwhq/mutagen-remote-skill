@@ -116,7 +116,9 @@ with paths relative to the current directory:
   it's unclear which changes to keep, show the user the diff and ask.
 - `this content couldn't be synchronized`: the side in parentheses couldn't
   read or write the path, for example because of permissions. Fix it on that
-  side if you can, or tell the user.
+  side if you can, or tell the user. These can hide conflicts: with nothing else
+  to list, `remote --conflicts` then prints `Conflicts can't be ruled out` and
+  exits with status 0, so it isn't the same as `No conflicts.`.
 
 Ignored paths are never synchronized and aren't reported; if a file is missing
 on one side without a warning, it's probably ignored. `remote --ignores` lists
