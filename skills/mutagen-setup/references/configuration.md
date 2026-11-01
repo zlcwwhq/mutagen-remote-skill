@@ -69,7 +69,13 @@ session (not per endpoint) and implies `ignore.vcs: true`; combining it with
   only where the repository does. `ignore.paths` takes precedence, so
   `!.env` synchronizes a file that `.gitignore` ignores. `.git` entries (files
   too) are never synchronized and can't be unignored, so the other side has no
-  superproject repository.
+  superproject repository. Rules follow Git 2.52 and later; older versions of
+  Git treat patterns like `foo**/bar` differently.
+- **What an endpoint receives**: an endpoint applies its own rules here too,
+  including to paths that it doesn't have yet. An excluded path isn't written
+  and is reported as a warning, while the rest of its directory still arrives,
+  and so do `.gitignore` files themselves. So a `.git/info/exclude` on one
+  endpoint keeps the other endpoint's copies of what it excludes away.
 - **Tracked files that `.gitignore` ignores** aren't synchronized, and the
   endpoint with the repository reports a problem that suggests the pattern to
   unignore them (`!path`, or `!directory` for a file inside an ignored
@@ -89,13 +95,13 @@ session (not per endpoint) and implies `ignore.vcs: true`; combining it with
   so flushes and `remote` commands wait for it. A clone belongs to the user
   running the endpoint, not `permissions.defaultOwner`, because Git refuses
   repositories that another user owns.
-- **Problems that stop synchronization**: a `.git` that isn't a valid repository,
-  or an endpoint without a suitable `git`, keeps that directory from being
-  synchronized until it's fixed or removed. A `.gitignore` that can't be written
-  on an endpoint stops everything else in the session until it's fixed, because
-  a cycle that has rule files to deliver does only that. This is what keeps
-  files that new rules ignore from being copied or deleted before the rules
-  arrive.
+- **Problems that stop synchronization**: a `.git` that isn't a valid
+  repository, or an endpoint without a suitable `git`, keeps that directory from
+  being synchronized until it's fixed or removed, and so does a rule file that
+  can't be read. A `.gitignore` that can't be written on an endpoint stops
+  everything else in the session until it's fixed, because a cycle that has rule
+  files to deliver does only that. This is what keeps files that new rules ignore
+  from being copied or deleted before the rules arrive.
 - **Nested repositories that the user cloned by hand**, and worktrees, are
   compared by commit too if they have an origin. Add them to `.gitignore` to
   leave them out. A submodule inside an ignored directory is neither

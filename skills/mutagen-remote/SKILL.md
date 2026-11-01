@@ -58,7 +58,8 @@ commands that `remote` suggests include it.
   `remote --pull <path>` copies ignored files or directories here, so local
   tools can read them. Tell the user if outputs they want locally are ignored.
   In a Git-mode session, `.gitignore` rules ignore paths too, so a missing
-  output is probably ignored by them.
+  output is probably ignored by them. Neither side writes what its own rules
+  ignore: `remote` warns, and the rest of the directory still arrives.
 - **Edit sources locally.** Let remote commands write only outputs, and avoid
   `git` commands that write remotely: a file changed on both sides becomes a
   conflict and stops synchronizing. Even `git status`, `git diff`, and

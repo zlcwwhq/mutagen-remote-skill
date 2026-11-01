@@ -116,7 +116,8 @@ with paths relative to the current directory:
   it's unclear which changes to keep, show the user the diff and ask.
 - `this content couldn't be synchronized`: the side in parentheses couldn't
   read or write the path, for example because of permissions. Fix it on that
-  side if you can, or tell the user.
+  side if you can, or tell the user. In a Git-mode session, it can also be that
+  side's own rules at work, which is by design (see "Git on the other side").
 
 Ignored paths are never synchronized and aren't reported; if a file is missing
 on one side without a warning, it's probably ignored. `remote --ignores` lists
@@ -373,14 +374,31 @@ side has no repository for the project's root either:
   side, or a submodule against a file) can't be resolved with `remote`; tell
   the user to check out the same commit on both sides, or to delete the
   submodule on one.
+- A checkout never overwrites ignored local files: Git refuses, the session
+  reports a problem, and the submodule stays at its old commit until the user
+  moves the file that's in the way.
 - Commands can run in a submodule's directory, since it exists on both sides.
   Content beneath it isn't synchronized file by file, so `remote --pull
   sub/build/out` copies it (as `remote --ignores sub/build/out` shows with
   "inside submodule sub"), while `remote --pull sub` is refused: the session
-  synchronizes the submodule itself, so use `remote --flush` for that.
+  synchronizes the submodule itself, so use `remote --flush` for that. A nested
+  repository without a commit or origin is synchronized as a plain directory, so
+  `--pull` refuses to write into it, and it also refuses if Git can't examine a
+  repository, its origin isn't usable, or a rule file can't be read.
 - Tracked files that `.gitignore` ignores aren't synchronized; the side with
   the repository reports a problem that names the pattern to unignore them.
   Suggest it to the user rather than editing `mutagen.yml` yourself.
+- Each side applies its own rules to what it receives, including paths that it
+  doesn't have yet, so the `.git/info/exclude` of a repository on one side keeps
+  the other side's copies of what it excludes away. `remote` warns (`ignored by
+  this endpoint's own rules`): the path isn't written, while the rest of its
+  directory still arrives, and so do `.gitignore` files themselves. This is by
+  design and doesn't affect commands. If the file is needed on that side,
+  `remote --pull <path>` there copies it, or suggest the pattern in the warning
+  to the user. If that side already has the path, there's no warning, since the
+  session simply doesn't track it.
+- If a rule file can't be read, the session reports a problem and doesn't
+  synchronize that file's directory until it's fixed.
 
 The rest of this section is for sessions that synchronize `.git`.
 
