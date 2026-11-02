@@ -131,10 +131,12 @@ status 1 if any is ignored); `possibly synchronized` and `synchronized as
 <path> (through a symbolic link)` mean that the session may synchronize the
 path, so `--pull` refuses it. In a Git-mode session, it also says what ignores
 a path: `by Git rules` (`.gitignore` files or `.git/info/exclude`, read from
-this side's copy) or `Git mode never synchronizes .git entries`.
+this side's copy; inside a nested repository, only its own rules apply) or
+`Git mode never synchronizes .git entries`.
 `remote --pull <path>...` copies ignored files,
 directories, or symbolic links from the other side, replacing local files that
-differ but never deleting local ones; read single files with
+differ but never deleting local ones (it never writes inside a `.git`, and adds
+one only where none exists); read single files with
 `remote --no-flush cat` if you don't need a local copy. It also refuses paths that another session on
 this machine synchronizes, but it only knows sessions that are connected and
 run by this version of Mutagen or a later one, so don't pull into another
@@ -357,9 +359,33 @@ side has no repository for the project's root either:
 - `git` there fails with `not a git repository`, or, worse, reports the state
   of a repository in a directory above the session's root. Compute what you
   need locally and pass it in, as below.
-- A nested repository, such as a submodule, is synchronized as an ordinary
-  directory, without its `.git`: its files reach the other side like any others,
-  while its commits and branches don't, and `--pull` refuses to write into it.
+- A submodule (a nested repository with a commit checked out and an origin)
+  has its files synchronized like any others, uncommitted changes included, and
+  a repository of its own on each side, whose `.git` isn't synchronized:
+  branches, stashes, and unpushed commits stay where they are, and `git` works
+  in it on both sides. When one side checks out another commit, the other moves
+  its detached `HEAD` there without touching files, fetching the commit from
+  the origin in the background if it has to (it needs `git`, network access,
+  and read access to the repository). Until a commit is pushed, the other
+  side's `HEAD` stays behind and `remote` warns, but the files still arrive, so
+  commands see them; only `git` there reports another commit and changes. Tell
+  the user if Git state matters there, and never push for them without asking.
+- A side without the submodule gets a clone from its origin, and the flush
+  waits until the clone has the other side's changes and nested submodules.
+- If both sides check out different commits, `remote --conflicts` lists a
+  conflict for the submodule, and nothing in it is synchronized until both have
+  the same commit checked out. `remote` can't resolve it: tell the user to
+  check out the same commit on both sides, or to delete the submodule on the
+  side whose commit and changes should be discarded, which then gets a clone.
+- Deleting a submodule isn't synchronized: the side that still has it reports
+  a problem, and the user removes it there by hand.
+- Inside a nested repository, only its own `.gitignore` files and exclude file
+  apply, as for `git` run in it; the rules above it only decide whether the
+  whole directory is ignored. Nested repositories without a commit or an origin
+  are synchronized as ordinary directories, without their `.git`.
+- Clones that the session makes use the other side's line ending settings.
+  Existing checkouts with different `core.autocrlf` settings differ in every
+  text file and conflict; suggest pinning line endings in `.gitattributes`.
 - Tracked files that `.gitignore` ignores aren't synchronized; the side with
   the repository reports a problem that names the pattern to unignore them.
   Suggest it to the user rather than editing `mutagen.yml` yourself.

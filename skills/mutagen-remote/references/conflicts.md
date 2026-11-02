@@ -49,7 +49,10 @@ To combine both sides manually:
    Conflicts that aren't between two files say which copies `--take` can
    keep. Lines marked as something remote can't resolve need the manual
    approach. Conflicts involving directories
-   are rejected by checkout and apply; report these to the user. Conflicts
+   are rejected by checkout and apply; report these to the user. So are
+   conflicts between the commits of a submodule, in Git mode: tell the user to
+   check out the same commit on both sides, or to delete the submodule on the
+   side to discard, which then gets a clone of the other side's. Conflicts
    checked out through the other side belong to whoever checked them out
    there: leave them alone, and ask the user if they seem abandoned. A
    conflict checked out here whose copy changed since checkout must be

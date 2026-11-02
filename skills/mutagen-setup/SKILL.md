@@ -40,8 +40,10 @@ Ask for what you can't infer, then summarize the plan for confirmation:
   repository, enable Git mode (`git: enabled`) instead of listing what its
   `.gitignore` files already ignore and ignoring `.git` with `ignore.vcs`: it
   also never synchronizes `.git`, so the other side has no superproject
-  repository. Ask only about extra paths, such as datasets that `.gitignore`
-  doesn't cover; see
+  repository, while submodules have their files synchronized and follow each
+  other's commits, which each side fetches from their origin (it needs `git`,
+  network access, and read access to them). Ask only about extra paths, such as
+  datasets that `.gitignore` doesn't cover; see
   [configuration.md](references/configuration.md#git-mode). Other projects
   ignore VCS directories with `ignore.vcs: true`.
 - **Environment setup** that commands need on the executing side, such as a

@@ -64,7 +64,8 @@ session (not per endpoint) and implies `ignore.vcs: true`; combining it with
 
 - **Ignores**: the rules of `.gitignore` files at every level beneath the root
   and of the root repository's `.git/info/exclude` apply, case-sensitively,
-  but not global excludes or files above the root. Each endpoint reads its
+  but not global excludes or files above the root. Inside a nested repository,
+  only its own `.gitignore` files and exclude file apply, as for Git run in it. Each endpoint reads its
   own copy, so put shared ignores in `.gitignore`: `.git/info/exclude` exists
   only where the repository does. `ignore.paths` takes precedence, so
   `!.env` synchronizes a file that `.gitignore` ignores. `.git` entries (files
@@ -80,9 +81,19 @@ session (not per endpoint) and implies `ignore.vcs: true`; combining it with
   endpoint with the repository reports a problem that suggests the pattern to
   unignore them (`!path`, or `!directory` for a file inside an ignored
   directory). Adding a rule later never deletes files that were synchronized.
-- **Nested repositories**, such as submodules, are synchronized as ordinary
-  directories, without their `.git`, so their commits and branches stay on the
-  endpoint that has them.
+- **Submodules** (nested repositories with a commit checked out and an
+  origin) have their files synchronized, uncommitted changes included, but not
+  their `.git`, so branches and unpushed commits stay on the endpoint that has
+  them. Each endpoint follows the commit that the other checks out, fetching it
+  from the origin in the background, so both systems need `git`, network
+  access, and read access to the submodules' repositories, and commits have to
+  be pushed. An endpoint without a submodule gets a clone. If both check out
+  different commits, nothing in the submodule synchronizes until they agree
+  (`remote --conflicts` lists it). Deleting a submodule isn't synchronized.
+  Existing checkouts need the same line ending settings, or line endings
+  pinned in `.gitattributes`, since their text files otherwise conflict. Other
+  nested repositories are synchronized as ordinary directories, without their
+  `.git`.
 - **Problems that stop synchronization**: a rule file that can't be read keeps
   its directory from being synchronized until it's fixed. A `.gitignore` that
   can't be written on an endpoint stops everything else in the session until
