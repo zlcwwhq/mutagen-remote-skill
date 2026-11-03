@@ -372,11 +372,14 @@ side has no repository for the project's root either:
   the user if Git state matters there, and never push for them without asking.
 - A side without the submodule gets a clone from its origin, and the flush
   waits until the clone has the other side's changes and nested submodules.
-- If both sides check out different commits, `remote --conflicts` lists a
-  conflict for the submodule, and nothing in it is synchronized until both have
-  the same commit checked out. `remote` can't resolve it: tell the user to
-  check out the same commit on both sides, or to delete the submodule on the
-  side whose commit and changes should be discarded, which then gets a clone.
+- If both sides check out different commits, two-way-safe sessions synchronize
+  nothing in the submodule until both have the same commit checked out, and
+  one-way-safe sessions synchronize its files but not its commit; both list a
+  conflict in `remote --conflicts`. Two-way-resolved sessions follow alpha's
+  commit instead. `remote` can't resolve the conflict: tell the user to check
+  out the same commit on both sides, or to delete the submodule on the side
+  whose commit and changes should be discarded (beta, in one-way-safe
+  sessions), which then gets a clone.
 - Deleting a submodule isn't synchronized: the side that still has it reports
   a problem, and the user removes it there by hand.
 - Inside a nested repository, only its own `.gitignore` files and exclude file
