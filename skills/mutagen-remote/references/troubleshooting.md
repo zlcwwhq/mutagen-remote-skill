@@ -409,6 +409,11 @@ side has no repository for the project's root either:
   `remote --pull <path>` there copies it, or suggest the pattern in the warning
   to the user. If that side already has the path, there's no warning, since the
   session simply doesn't track it.
+- In one-way-replica sessions, beta keeps content that its rules ignored until
+  a change of rules exposed it, with a problem (`isn't removed or overwritten
+  automatically, since rules ignored it`). Never delete it yourself: tell the
+  user, who deletes it on beta or ignores it again there (in beta's
+  `.git/info/exclude`, or with `ignore.paths`).
 - If a rule file can't be read, the session reports a problem, doesn't
   synchronize that file's directory until it's fixed, and `--pull` refuses to
   write there. The same goes for a rule file too large or complex to parse

@@ -81,6 +81,11 @@ session (not per endpoint) and implies `ignore.vcs: true`; combining it with
   endpoint with the repository reports a problem that suggests the pattern to
   unignore them (`!path`, or `!directory` for a file inside an ignored
   directory). Adding a rule later never deletes files that were synchronized.
+- **One-way-replica** keeps content on beta that beta's rules ignored until a
+  change of rules exposed it (the session removing a `.gitignore` that only
+  beta had, alpha removing a rule, or an edit of beta's `.git/info/exclude`),
+  and beta reports a problem until it's deleted, identical to alpha's, or
+  ignored again. Put ignores that only beta needs in its `.git/info/exclude`.
 - **Submodules** (nested repositories with a commit checked out and an
   origin) have their files synchronized, uncommitted changes included, but not
   their `.git`, so branches and unpushed commits stay on the endpoint that has
