@@ -370,6 +370,9 @@ side has no repository for the project's root either:
   side's `HEAD` stays behind and `remote` warns, but the files still arrive, so
   commands see them; only `git` there reports another commit and changes. Tell
   the user if Git state matters there, and never push for them without asking.
+  `HEAD` also waits, with a warning, while a Git operation is in progress on
+  that side, such as a merge, a rebase, or a commit whose message is being
+  edited, and follows once it's finished or aborted.
 - A side without the submodule gets a clone from its origin, and the flush
   waits until the clone has the other side's changes and nested submodules.
 - If both sides check out different commits, two-way-safe sessions synchronize
