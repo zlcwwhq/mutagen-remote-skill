@@ -375,6 +375,9 @@ side has no repository for the project's root either:
   edited, and follows once it's finished or aborted.
 - A side without the submodule gets a clone from its origin, and the flush
   waits until the clone has the other side's changes and nested submodules.
+  Clones and fetches only use `https`, `http`, `ssh`, and `git` URLs, so a
+  submodule whose origin is a local path or a `file://` URL fails with
+  `transport 'file' not allowed`: tell the user it needs such an origin.
 - If both sides check out different commits, two-way-safe sessions synchronize
   nothing in the submodule until both have the same commit checked out, and
   one-way-safe sessions synchronize its files but not its commit; both list a
@@ -384,7 +387,9 @@ side has no repository for the project's root either:
   whose commit and changes should be discarded (beta, in one-way-safe
   sessions), which then gets a clone.
 - Deleting a submodule isn't synchronized: the side that still has it reports
-  a problem, and the user removes it there by hand.
+  a problem, and the user removes it there by hand. In one-way-replica
+  sessions, beta reports the same problem for a submodule that alpha has only
+  as an empty directory (not initialized there).
 - Inside a nested repository, only its own `.gitignore` files and exclude file
   apply, as for `git` run in it; the rules above it only decide whether the
   whole directory is ignored. Nested repositories without a commit or an origin
@@ -406,7 +411,8 @@ side has no repository for the project's root either:
   session simply doesn't track it.
 - If a rule file can't be read, the session reports a problem, doesn't
   synchronize that file's directory until it's fixed, and `--pull` refuses to
-  write there.
+  write there. The same goes for a rule file too large or complex to parse
+  (`exceeds the rule file complexity limit`).
 
 The rest of this section is for sessions that synchronize `.git`.
 

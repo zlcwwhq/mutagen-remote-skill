@@ -87,7 +87,10 @@ session (not per endpoint) and implies `ignore.vcs: true`; combining it with
   them. Each endpoint follows the commit that the other checks out, fetching it
   from the origin in the background, so both systems need `git` (2.29 or
   later), network access, and read access to the submodules' repositories, and
-  commits have to be pushed. An endpoint without a submodule gets a clone. If
+  commits have to be pushed. Origins have to be `https`, `http`, `ssh`
+  (including `host:path`), or `git` URLs: a submodule whose origin is a local
+  path or a `file://` URL can't be cloned or fetched from. An endpoint without
+  a submodule gets a clone. If
   both check out different commits, two-way-safe sessions synchronize nothing
   in the submodule until they agree (`remote --conflicts` lists it), and
   two-way-resolved sessions follow alpha's commit. Deleting a submodule isn't
