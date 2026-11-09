@@ -52,7 +52,9 @@ To combine both sides manually:
    are rejected by checkout and apply; report these to the user. So are
    conflicts between the commits of a submodule, in Git mode: tell the user to
    check out the same commit on both sides, or to delete the submodule on the
-   side to discard, which then gets a clone of the other side's. Conflicts
+   side to discard, which then gets a clone of the other side's. Once the
+   commits agree, uncommitted changes that only one side has propagate, and
+   only files changed on both sides remain, as ordinary file conflicts. Conflicts
    checked out through the other side belong to whoever checked them out
    there: leave them alone, and ask the user if they seem abandoned. A
    conflict checked out here whose copy changed since checkout must be

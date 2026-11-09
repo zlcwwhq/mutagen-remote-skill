@@ -98,7 +98,8 @@ session (not per endpoint) and implies `ignore.vcs: true`; combining it with
   a submodule gets a clone. If
   both check out different commits, two-way-safe sessions synchronize nothing
   in the submodule until they agree (`remote --conflicts` lists it), and
-  two-way-resolved sessions follow alpha's commit. Deleting a submodule isn't
+  two-way-resolved sessions follow alpha's commit. Once both have the same
+  commit, uncommitted changes that only one has propagate from it. Deleting a submodule isn't
   synchronized. Existing checkouts need the same line ending settings, or line
   endings pinned in `.gitattributes`, since their text files otherwise
   conflict. Other nested repositories are synchronized as ordinary

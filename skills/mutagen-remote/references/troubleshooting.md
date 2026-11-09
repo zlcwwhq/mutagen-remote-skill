@@ -385,7 +385,10 @@ side has no repository for the project's root either:
   commit instead. `remote` can't resolve the conflict: tell the user to check
   out the same commit on both sides, or to delete the submodule on the side
   whose commit and changes should be discarded (beta, in one-way-safe
-  sessions), which then gets a clone.
+  sessions), which then gets a clone. Once both have the same commit, a file
+  that `git` there reports as changed (modified, deleted, or untracked) on only
+  one side propagates from it, even if the commit changed that file; only a
+  file changed on both sides is an ordinary file conflict.
 - Deleting a submodule isn't synchronized: the side that still has it reports
   a problem, and the user removes it there by hand. In one-way-replica
   sessions, beta reports the same problem for a submodule that alpha has only
