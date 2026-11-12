@@ -34,9 +34,18 @@ Ask for what you can't infer, then summarize the plan for confirmation:
   commands on beta (the usual case), `alpha` for the reverse, `true` for both.
   Any process of the user's on a submitting system can then run commands on
   the executing one, so enable only directions that the user trusts.
-- **What not to synchronize**: VCS directories, virtual environments,
-  dependencies, caches, build outputs, datasets, checkpoints. Keep outputs that
-  the user wants back from remote jobs, such as logs and results, synchronized.
+- **What not to synchronize**: virtual environments, dependencies, caches,
+  build outputs, datasets, checkpoints. Keep outputs that the user wants back
+  from remote jobs, such as logs and results, synchronized. For a Git
+  repository, enable Git mode (`git: enabled`) instead of listing what its
+  `.gitignore` files already ignore and ignoring `.git` with `ignore.vcs`: it
+  also never synchronizes `.git`, so the other side has no superproject
+  repository, while submodules have their files synchronized and follow each
+  other's commits, which each side fetches from their origin (it needs `git`,
+  network access, and read access to them). Ask only about extra paths, such as
+  datasets that `.gitignore` doesn't cover; see
+  [configuration.md](references/configuration.md#git-mode). Other projects
+  ignore VCS directories with `ignore.vcs: true`.
 - **Environment setup** that commands need on the executing side, such as a
   conda environment: it becomes a prologue.
 
@@ -91,14 +100,16 @@ sync:
     beta: "gpu-box:~/projects/myproject"
     mode: "two-way-safe"
     remote: beta
+    git: enabled
     ignore:
-      vcs: true
       paths:
         - "/mutagen.yml.lock"
         - ".venv/"
         - "__pycache__/"
 ```
 
+This is for a Git repository. Otherwise, remove `git: enabled` and add
+`vcs: true` under `ignore`, which ignores `.git` and the other VCS directories.
 Keep `/mutagen.yml.lock` ignored: `mutagen` keeps that file next to
 `mutagen.yml` while the project runs. In a Git repository, also add it to
 `.gitignore`. Session names start with a letter and contain only letters,
@@ -126,10 +137,12 @@ mutagen project list              # status, conflicts, and problems
 ```
 
 `apply` keeps unchanged sessions and recreates changed ones, including for
-changes to `remote` or `remotePrologue`. Recreated sessions lose their
-synchronization history, so the plan's replacements behave like a first
-synchronization (step 4): before applying them, have the user stop processes
-that write synchronized files and resume paused sessions.
+changes to `remote`, `remotePrologue`, or `git` (to move a session from
+`ignore.vcs` to Git mode, see
+[configuration.md](references/configuration.md#git-mode)). Recreated sessions
+lose their synchronization history, so the plan's replacements behave like a
+first synchronization (step 4): before applying them, have the user stop
+processes that write synchronized files and resume paused sessions.
 
 Query `remote --nodes` where commands are submitted, in the source's directory
 (alpha's for a pair, the center's for a star), until the intended target is

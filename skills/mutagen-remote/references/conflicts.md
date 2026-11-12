@@ -40,14 +40,21 @@ Plain merged-file apply and `--delete` still require explicit checkout.
 To combine both sides manually:
 
 1. Run `remote --conflicts`. It synchronizes and lists every conflict, with
-   paths relative to the current directory. In a star, conflicts belong to
+   paths relative to the current directory. If it says that conflicts can't be
+   ruled out, fix what it warns about first, or tell the user: content that
+   couldn't be synchronized can hide conflicts. In a star, conflicts belong to
    the edge between the center and one node: work from the center with
    `--node` selecting that node, or from that node, and keep the same
    selection on every command of the workflow (see [nodes.md](nodes.md)).
    Conflicts that aren't between two files say which copies `--take` can
    keep. Lines marked as something remote can't resolve need the manual
    approach. Conflicts involving directories
-   are rejected by checkout and apply; report these to the user. Conflicts
+   are rejected by checkout and apply; report these to the user. So are
+   conflicts between the commits of a submodule, in Git mode: tell the user to
+   check out the same commit on both sides, or to delete the submodule on the
+   side to discard, which then gets a clone of the other side's. Once the
+   commits agree, uncommitted changes that only one side has propagate, and
+   only files changed on both sides remain, as ordinary file conflicts. Conflicts
    checked out through the other side belong to whoever checked them out
    there: leave them alone, and ask the user if they seem abandoned. A
    conflict checked out here whose copy changed since checkout must be
@@ -169,7 +176,8 @@ and `target`, and contains the `listing`. That listing has the form
 "RemotePending": [<path>...]}`, where `CheckedOut` is `"local"` or `"remote"` (checked out
 through the other side) for checked-out conflicts. `LocalChanges` and
 `RemoteChanges` describe changes on the entry's `source` and `target`.
-`Problems` preserves scan and transition problems. `Checkouts` records each
+`Problems` preserves scan and transition problems, with `Warning` set on what
+isn't synchronized by design, which can't hide conflicts. `Checkouts` records each
 checkout's `Path` and owning `Node`.
 `ExcludedChanges` counts omitted changes in a bounded summary. Text listings
 describe at most five changes per side for each conflict and count the rest,

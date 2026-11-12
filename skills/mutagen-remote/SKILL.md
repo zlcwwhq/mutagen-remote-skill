@@ -57,12 +57,19 @@ commands that `remote` suggests include it.
   locally, `remote --ignores <path>` shows whether the session ignores it;
   `remote --pull <path>` copies ignored files or directories here, so local
   tools can read them. Tell the user if outputs they want locally are ignored.
+  In a Git-mode session, `.gitignore` rules ignore paths too, so a missing
+  output is probably ignored by them. Neither side writes what its own rules
+  ignore: `remote` warns, and the rest of the directory still arrives.
 - **Edit sources locally.** Let remote commands write only outputs, and avoid
   `git` commands that write remotely: a file changed on both sides becomes a
   conflict and stops synchronizing. Even `git status`, `git diff`, and
   `git describe --dirty` rewrite a synced `.git/index`, so compute Git state
   locally and pass it in:
   `remote -e GIT_REV="$(git describe --always --dirty)" python train.py`.
+  A Git-mode session never synchronizes `.git`, so the other side usually has
+  no repository for the project to run `git` in, while each submodule has its
+  own on each side, which follows the other side's commit once it's pushed. See
+  "Git on the other side" in [troubleshooting.md](references/troubleshooting.md).
 
 `remote --help` lists the options and help topics of the installed `remote`.
 If it lacks an option described here, that `remote` is older than this skill:

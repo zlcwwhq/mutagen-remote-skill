@@ -32,9 +32,11 @@ commands.
 
 `ignore.paths` uses `.gitignore`-like patterns: `name` matches at any depth,
 `/name` only at the root, a trailing `/` matches directories only, `*` and `**`
-are wildcards, and `!pattern` re-includes. `ignore.vcs: true` ignores `.git`,
-`.svn`, `.hg`, `.bzr`, and `_darcs`; omit it if beta needs the repository, and
-then avoid running Git commands that write on beta. These include `git status`,
+are wildcards, and `!pattern` re-includes. For a Git repository, use
+[Git mode](#git-mode), which reads `.gitignore` files and replaces
+`ignore.vcs`. Otherwise, `ignore.vcs: true` ignores `.git`, `.svn`, `.hg`,
+`.bzr`, and `_darcs`; omit it if beta needs the repository, and then avoid
+running Git commands that write on beta. These include `git status`,
 `git diff`, and `git describe --dirty`: Mutagen doesn't synchronize
 modification times, so they rewrite `.git/index` to match beta's files, the
 rewritten index synchronizes back, and concurrent rewrites on both sides
@@ -50,6 +52,71 @@ Common candidates: `.venv/`, `node_modules/`, `__pycache__/`, `*.pyc`,
 data, checkpoint, or experiment-tracking directories such as `/data/` or
 `wandb/`. Ask before ignoring anything that the user might expect on both
 sides.
+
+## Git mode
+
+On releases that support it (`mutagen sync create --help` lists `--git`), a
+Git repository should use `git: enabled` (`--git` for `mutagen sync create`)
+under the session, `sync.defaults`, or `star.sync`, instead of `ignore.vcs:
+true` and `ignore.paths` that repeat `.gitignore`. It applies to the whole
+session (not per endpoint) and implies `ignore.vcs: true`; combining it with
+`ignore.vcs: false` (`--no-ignore-vcs`) is an error.
+
+- **Ignores**: the rules of `.gitignore` files at every level beneath the root
+  and of the root repository's `.git/info/exclude` apply, case-sensitively,
+  but not global excludes or files above the root. Inside a nested repository,
+  only its own `.gitignore` files and exclude file apply, as for Git run in it. Each endpoint reads its
+  own copy, so put shared ignores in `.gitignore`: `.git/info/exclude` exists
+  only where the repository does. `ignore.paths` takes precedence, so
+  `!.env` synchronizes a file that `.gitignore` ignores. `.git` entries (files
+  too) are never synchronized and can't be unignored, so the other side has no
+  superproject repository. Rules follow Git 2.52 and later; older versions of
+  Git treat patterns like `foo**/bar` differently.
+- **What an endpoint receives**: an endpoint applies its own rules here too,
+  including to paths that it doesn't have yet. An excluded path isn't written
+  and is reported as a warning, while the rest of its directory still arrives,
+  and so do `.gitignore` files themselves. So a `.git/info/exclude` on one
+  endpoint keeps the other endpoint's copies of what it excludes away.
+- **Tracked files that `.gitignore` ignores** aren't synchronized, and the
+  endpoint with the repository reports a problem that suggests the pattern to
+  unignore them (`!path`, or `!directory` for a file inside an ignored
+  directory). Adding a rule later never deletes files that were synchronized.
+- **One-way-replica** keeps content on beta that beta's rules ignored until a
+  change of rules exposed it (the session removing a `.gitignore` that only
+  beta had, alpha removing a rule, or an edit of beta's `.git/info/exclude`),
+  and beta reports a problem until it's deleted, identical to alpha's, or
+  ignored again. Put ignores that only beta needs in its `.git/info/exclude`.
+- **Submodules** (nested repositories with a commit checked out and an
+  origin) have their files synchronized, uncommitted changes included, but not
+  their `.git`, so branches and unpushed commits stay on the endpoint that has
+  them. Each endpoint follows the commit that the other checks out, fetching it
+  from the origin in the background, so both systems need `git` (2.29 or
+  later), network access, and read access to the submodules' repositories, and
+  commits have to be pushed. Origins have to be `https`, `http`, `ssh`
+  (including `host:path`), or `git` URLs: a submodule whose origin is a local
+  path or a `file://` URL can't be cloned or fetched from. An endpoint without
+  a submodule gets a clone. If
+  both check out different commits, two-way-safe sessions synchronize nothing
+  in the submodule until they agree (`remote --conflicts` lists it), and
+  two-way-resolved sessions follow alpha's commit. Once both have the same
+  commit, uncommitted changes that only one has propagate from it. Deleting a submodule isn't
+  synchronized. Existing checkouts need the same line ending settings, or line
+  endings pinned in `.gitattributes`, since their text files otherwise
+  conflict. Other nested repositories are synchronized as ordinary
+  directories, without their `.git`.
+- **Problems that stop synchronization**: a rule file that can't be read keeps
+  its directory from being synchronized until it's fixed. A `.gitignore` that
+  can't be written on an endpoint stops everything else in the session until
+  it's fixed, because a cycle that has rule files to deliver does only that. This
+  is what keeps files that new rules ignore from being copied or deleted before
+  the rules arrive.
+
+### Moving a session from `ignore.vcs` to Git mode
+
+With the user's consent: in `mutagen.yml`, replace `ignore: vcs: true` with
+`git: enabled` and remove the `ignore.paths` that repeat `.gitignore` files,
+then preview and apply. The session is recreated with fresh synchronization
+history (prepare as for a first synchronization, step 4 of the main workflow).
 
 ## Remote commands and prologues
 
@@ -104,8 +171,8 @@ daemon:
 star:
   remote: true
   sync:
+    git: enabled
     ignore:
-      vcs: true
       paths: ["/mutagen.yml.lock", ".venv/", "__pycache__/"]
   center: local
   nodes:
@@ -149,7 +216,7 @@ disagree on it, `apply` fails and names them; with the user's consent,
 terminate one of them and apply again.
 
 Shared settings under `star.sync` extend global and `sync.defaults` settings,
-including ignores. A non-center node's `mode` sets the mode of its own edge,
+including ignores and `git`, which nodes can't set. A non-center node's `mode` sets the mode of its own edge,
 overriding `star.sync.mode` and the defaults; edges use `two-way-safe` if
 nothing sets a mode. `mode` can't be set on the center. The center is alpha on
 every edge, so it wins conflicts in `two-way-resolved` mode, and one-way modes

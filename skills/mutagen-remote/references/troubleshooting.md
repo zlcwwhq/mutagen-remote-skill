@@ -116,16 +116,27 @@ with paths relative to the current directory:
   it's unclear which changes to keep, show the user the diff and ask.
 - `this content couldn't be synchronized`: the side in parentheses couldn't
   read or write the path, for example because of permissions. Fix it on that
-  side if you can, or tell the user.
+  side if you can, or tell the user. These can hide conflicts: with nothing else
+  to list, `remote --conflicts` then prints `Conflicts can't be ruled out` and
+  exits with status 0, so it isn't the same as `No conflicts.`.
+- `this content isn't synchronized, by design`: a Git-mode session left the path
+  out on purpose, such as because of that side's own rules (see "Git on the
+  other side"). It doesn't affect commands, and `remote --conflicts` can still
+  print `No conflicts.`.
 
 Ignored paths are never synchronized and aren't reported; if a file is missing
 on one side without a warning, it's probably ignored. `remote --ignores` lists
 the session's ignores, and `remote --ignores <path>...` checks paths (exit
 status 1 if any is ignored); `possibly synchronized` and `synchronized as
 <path> (through a symbolic link)` mean that the session may synchronize the
-path, so `--pull` refuses it. `remote --pull <path>...` copies ignored files,
+path, so `--pull` refuses it. In a Git-mode session, it also says what ignores
+a path: `by Git rules` (`.gitignore` files or `.git/info/exclude`, read from
+this side's copy; inside a nested repository, only its own rules apply) or
+`Git mode never synchronizes .git entries`.
+`remote --pull <path>...` copies ignored files,
 directories, or symbolic links from the other side, replacing local files that
-differ but never deleting local ones; read single files with
+differ but never deleting local ones (it never writes inside a `.git`, and adds
+one only where none exists); read single files with
 `remote --no-flush cat` if you don't need a local copy. It also refuses paths that another session on
 this machine synchronizes, but it only knows sessions that are connected and
 run by this version of Mutagen or a later one, so don't pull into another
@@ -340,6 +351,78 @@ the script, and it can't run detached.
   lost connection above), but detached jobs keep running.
 
 ## Git on the other side
+
+A session in Git mode (`remote --ignores` lists "Git rules") never
+synchronizes `.git`, so the index problem below doesn't arise, but the other
+side has no repository for the project's root either:
+
+- `git` there fails with `not a git repository`, or, worse, reports the state
+  of a repository in a directory above the session's root. Compute what you
+  need locally and pass it in, as below.
+- A submodule (a nested repository with a commit checked out and an origin)
+  has its files synchronized like any others, uncommitted changes included, and
+  a repository of its own on each side, whose `.git` isn't synchronized:
+  branches, stashes, and unpushed commits stay where they are, and `git` works
+  in it on both sides. When one side checks out another commit, the other moves
+  its detached `HEAD` there without touching files, fetching the commit from
+  the origin in the background if it has to (it needs `git`, network access,
+  and read access to the repository). Until a commit is pushed, the other
+  side's `HEAD` stays behind and `remote` warns, but the files still arrive, so
+  commands see them; only `git` there reports another commit and changes. Tell
+  the user if Git state matters there, and never push for them without asking.
+  `HEAD` also waits, with a warning, while a Git operation is in progress on
+  that side, such as a merge, a rebase, or a commit whose message is being
+  edited, and follows once it's finished or aborted.
+- A side without the submodule gets a clone from its origin, and the flush
+  waits until the clone has the other side's changes and nested submodules.
+  Clones and fetches only use `https`, `http`, `ssh`, and `git` URLs, so a
+  submodule whose origin is a local path or a `file://` URL fails with
+  `transport 'file' not allowed`: tell the user it needs such an origin.
+- If both sides check out different commits, two-way-safe sessions synchronize
+  nothing in the submodule until both have the same commit checked out, and
+  one-way-safe sessions synchronize its files but not its commit; both list a
+  conflict in `remote --conflicts`. Two-way-resolved sessions follow alpha's
+  commit instead. `remote` can't resolve the conflict: tell the user to check
+  out the same commit on both sides, or to delete the submodule on the side
+  whose commit and changes should be discarded (beta, in one-way-safe
+  sessions), which then gets a clone. Once both have the same commit, a file
+  that `git` there reports as changed (modified, deleted, or untracked) on only
+  one side propagates from it, even if the commit changed that file; only a
+  file changed on both sides is an ordinary file conflict.
+- Deleting a submodule isn't synchronized: the side that still has it reports
+  a problem, and the user removes it there by hand. In one-way-replica
+  sessions, beta reports the same problem for a submodule that alpha has only
+  as an empty directory (not initialized there).
+- Inside a nested repository, only its own `.gitignore` files and exclude file
+  apply, as for `git` run in it; the rules above it only decide whether the
+  whole directory is ignored. Nested repositories without a commit or an origin
+  are synchronized as ordinary directories, without their `.git`.
+- Clones that the session makes use the other side's line ending settings.
+  Existing checkouts with different `core.autocrlf` settings differ in every
+  text file and conflict; suggest pinning line endings in `.gitattributes`.
+- Tracked files that `.gitignore` ignores aren't synchronized; the side with
+  the repository reports a problem that names the pattern to unignore them.
+  Suggest it to the user rather than editing `mutagen.yml` yourself.
+- Each side applies its own rules to what it receives, including paths that it
+  doesn't have yet, so the `.git/info/exclude` of a repository on one side keeps
+  the other side's copies of what it excludes away. `remote` warns (`ignored by
+  this endpoint's own rules`): the path isn't written, while the rest of its
+  directory still arrives, and so do `.gitignore` files themselves. This is by
+  design and doesn't affect commands. If the file is needed on that side,
+  `remote --pull <path>` there copies it, or suggest the pattern in the warning
+  to the user. If that side already has the path, there's no warning, since the
+  session simply doesn't track it.
+- In one-way-replica sessions, beta keeps content that its rules ignored until
+  a change of rules exposed it, with a problem (`isn't removed or overwritten
+  automatically, since rules ignored it`). Never delete it yourself: tell the
+  user, who deletes it on beta or ignores it again there (in beta's
+  `.git/info/exclude`, or with `ignore.paths`).
+- If a rule file can't be read, the session reports a problem, doesn't
+  synchronize that file's directory until it's fixed, and `--pull` refuses to
+  write there. The same goes for a rule file too large or complex to parse
+  (`exceeds the rule file complexity limit`).
+
+The rest of this section is for sessions that synchronize `.git`.
 
 Mutagen doesn't synchronize modification times, so when `.git` is synchronized
 (the session doesn't set `ignore.vcs`), the index never matches the other

@@ -141,8 +141,8 @@ system or sessions. Then it:
        beta: "gpu-box:~/projects/myproject"
        mode: "two-way-safe"
        remote: beta
+       git: enabled
        ignore:
-         vcs: true
          paths:
            - "/mutagen.yml.lock"
            - ".venv/"
@@ -150,6 +150,13 @@ system or sessions. Then it:
        configurationBeta:
          remotePrologue: "~/.config/remote-prologue.sh"
    ```
+
+   `git: enabled` is for a Git repository: the session then honors its
+   `.gitignore` files and never synchronizes `.git`, while submodules have their
+   files synchronized and follow each other's commits, which each system fetches
+   itself (so both need `git`, network access, and read access to the
+   submodules' repositories). Other projects get `vcs: true` under `ignore`
+   instead.
 
 6. Shows you `mutagen project apply --dry-run`, then runs
    `mutagen project apply` and `mutagen project flush`, and checks the result:
