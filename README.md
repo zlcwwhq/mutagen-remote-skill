@@ -4,15 +4,14 @@ Agent skills for the [zlcwwhq/mutagen](https://github.com/zlcwwhq/mutagen) fork,
 whose `remote` executable runs commands on the other side of a Mutagen
 synchronization session:
 
-- [`mutagen-remote`](skills/mutagen-remote/SKILL.md) teaches coding agents to
-  use `remote`: synchronization around commands, quoting, long-running jobs,
-  troubleshooting, and resolving conflicts with `remote` alone, without the
-  `mutagen` CLI.
-- [`mutagen-setup`](skills/mutagen-setup/SKILL.md) sets Mutagen up for a
-  project on the user's request: it installs or upgrades the fork from its
-  latest release when it's missing or outdated, starts the daemon, writes
-  `mutagen.yml` with the alpha and beta endpoints, starts the sessions, and
-  makes `remote` usable on the endpoints.
+- [`remote`](skills/remote/SKILL.md) teaches coding agents to use `remote`:
+  synchronization around commands, quoting, long-running jobs, troubleshooting,
+  and resolving conflicts with `remote` alone, without the `mutagen` CLI.
+- [`setup`](skills/setup/SKILL.md) sets Mutagen up for a project on the
+  user's request: it installs or upgrades the fork from its latest release
+  when it's missing or outdated, starts the daemon, writes `mutagen.yml` with
+  the alpha and beta endpoints, starts the sessions, and makes `remote` usable
+  on the endpoints.
 
 This repository is also a plugin marketplace that distributes both skills in
 one plugin, `mutagen-remote`, for Claude Code and Codex.
@@ -20,10 +19,11 @@ one plugin, `mutagen-remote`, for Claude Code and Codex.
 ## Installing
 
 Install the plugin on each system where agents submit commands with `remote` or
-set up Mutagen. The skills are then available as `mutagen-remote:mutagen-remote`
-and `mutagen-remote:mutagen-setup`. Agents use the first automatically when a
-task needs to run on the other side of a session, and the second when asked to
-set up, repair, or upgrade Mutagen.
+set up Mutagen. The skills are then available as `mutagen-remote:remote` and
+`mutagen-remote:setup`. Agents use the first automatically when a task needs to
+run on the other side of a session, and the second when asked to set up,
+repair, or upgrade Mutagen. To invoke one explicitly, use
+`/mutagen-remote:setup` in Claude Code or `$mutagen-remote:setup` in Codex.
 
 ### Claude Code
 
@@ -103,7 +103,7 @@ those commands as well.
 Other agents that support skills can use the directories in `skills` directly,
 by copying or linking them into their skills directory.
 
-## Example: setting up Mutagen with `mutagen-setup`
+## Example: setting up Mutagen with the `setup` skill
 
 Run the agent in the project directory on the system that should run the
 Mutagen daemon, usually your workstation, which becomes alpha. Then ask, for
@@ -183,9 +183,9 @@ that the sessions reconnect.
 
 The `main` branch describes `remote` as of the latest release of the fork, and
 every commit to it is an update. If the installed `remote` is older and lacks an
-option that the skill describes, the skill tells agents to follow
-`remote --help` instead. `mutagen-setup` installs the latest release. The fork
-references the matching version of this repository as a Git submodule at
+option that the `remote` skill describes, the skill tells agents to follow
+`remote --help` instead. The `setup` skill installs the latest release. The
+fork references the matching version of this repository as a Git submodule at
 `skills/mutagen-remote`.
 
 ## License

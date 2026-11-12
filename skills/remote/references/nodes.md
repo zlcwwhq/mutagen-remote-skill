@@ -18,8 +18,8 @@ remote make test                            # from gpu: runs on the center
 Node names are scoped to the source workspace. Declared stars use configured
 names; standalone pairs use `alpha` and `beta`. Omit `--node` only when there
 is exactly one other node, counting offline nodes. Independent pairs sharing
-the same root are ambiguous and should become a star through `mutagen-setup`
-with the user's authorization. Outside all roots, explicit `--node` or
+the same root are ambiguous and should become a star through the `setup`
+skill with the user's authorization. Outside all roots, explicit `--node` or
 `--nodes` requires one unambiguous source workspace on this system; commands
 then use the destination root and skip its prologue.
 

@@ -1,5 +1,5 @@
 ---
-name: mutagen-setup
+name: setup
 description: Set up Mutagen synchronization with remote commands (the zlcwwhq/mutagen fork) for a project — install or upgrade the fork's `mutagen` and `remote` from its latest GitHub release when they're missing or outdated, start the daemon, write `mutagen.yml` in the project directory with the alpha and beta endpoints, start the sessions, and make `remote` usable on the endpoints. Use when the user wants to sync a project with a server, GPU box, or container, set or change alpha, beta, or what's synchronized, install, upgrade, or repair Mutagen or its daemon, check for a newer release, or when `mutagen` is missing, reports a client/daemon version mismatch, or `remote` isn't found or belongs to another Mutagen version.
 ---
 
@@ -178,9 +178,9 @@ retry commands with side effects.
   [configuration.md](references/configuration.md#remote-commands-and-prologues),
   and check it with `remote --node <name> sh -c 'command -v python'` (or the
   relevant tool).
-- **The mutagen-remote skill**, which teaches agents to use `remote`: on each
-  system where agents submit commands, install it in Claude Code with
-  `claude plugin marketplace add zlcwwhq/mutagen-remote-skill` and
+- **The mutagen-remote plugin**, whose `remote` skill teaches agents to use
+  `remote`: on each system where agents submit commands, install it in Claude
+  Code with `claude plugin marketplace add zlcwwhq/mutagen-remote-skill` and
   `claude plugin install mutagen-remote@mutagen-remote-skill`.
 
 Finish by reporting what was installed (version and paths), the sessions and

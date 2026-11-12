@@ -1,5 +1,5 @@
 ---
-name: mutagen-remote
+name: remote
 description: Run commands on the other side of a Mutagen synchronization session with the `remote` executable — tests, builds, training or benchmark scripts, GPU checks, or anything else that has to execute on the server or container holding the synced copy of the code. Use this whenever the working directory is synced by Mutagen and the task needs execution on the other machine (the user says "run it on the server/remote/GPU box/container", mentions `remote`, `mutagen sync`, or a conda environment on the server, or the local machine lacks the needed hardware, OS, or dependencies), even if they don't name the tool. Also use it when `remote` fails or warns.
 ---
 
@@ -10,7 +10,7 @@ each is available, then `remote --node <name> <command> [args...]` to run on the
 chosen node in the corresponding directory. Omit the name only when there is
 exactly one other node. Ordinary pairs expose `alpha` and `beta`; declared
 stars use their configured names. Use only `remote`: endpoint systems may
-lack the `mutagen` CLI. Setup and topology changes belong to `mutagen-setup`.
+lack the `mutagen` CLI. Setup and topology changes belong to the `setup` skill.
 
 In a star, the center reaches every node, while every other node reaches only
 the center: from a non-center node, plain `remote <command>` runs on the
