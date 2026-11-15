@@ -353,12 +353,33 @@ the script, and it can't run detached.
 ## Git on the other side
 
 A session in Git mode (`remote --ignores` lists "Git rules") never
-synchronizes `.git`, so the index problem below doesn't arise, but the other
-side has no repository for the project's root either:
+synchronizes `.git` as files, so the index problem below doesn't arise:
 
-- `git` there fails with `not a git repository`, or, worse, reports the state
-  of a repository in a directory above the session's root. Compute what you
-  need locally and pass it in, as below.
+- Both sides have the repository at the session's root, at the same commit
+  and branch, so `git status`, `git log`, `git diff`, and `git commit` work on
+  either. A side without one gets it, with the other side's history and
+  origin URL. When one side commits, amends, resets, or switches branches,
+  the other moves `HEAD` and its branch there without touching files, and
+  Mutagen copies the commits, so they needn't be pushed. Other branches, tags,
+  stashes, the index, and configuration stay per side. Staged changes on the
+  following side stay staged where Git can keep them; otherwise `remote` warns
+  that they were unstaged.
+- If `git` there still fails with `not a git repository`, or reports a
+  repository in a directory above the session's root, the installed release
+  predates this: compute what you need locally and pass it in, as below.
+- `HEAD` waits, with a warning, while a rebase, merge, cherry-pick, or a
+  commit whose message is being edited is in progress on either side, and
+  while the following side has another branch of the same name with commits
+  the target lacks (the warning names it; tell the user).
+- Commit on one side at a time. If both sides commit before either follows
+  and neither commit contains the other, or they switch to different
+  branches, `remote --conflicts` lists a repository conflict and files keep
+  synchronizing, but neither `HEAD` moves. Resolve it on one side with the
+  commands that the listing prints: `git reset <the other side's commit>`
+  (after a `git switch` if the branches differ), which keeps every file, then
+  commit again; ask the user first if the commits
+  matter to them. Two-way-resolved sessions follow alpha's commit instead,
+  once the sides have agreed at least once.
 - A submodule (a nested repository with a commit checked out and an origin)
   has its files synchronized like any others, uncommitted changes included, and
   a repository of its own on each side, whose `.git` isn't synchronized:

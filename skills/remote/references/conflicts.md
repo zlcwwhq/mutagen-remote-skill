@@ -50,6 +50,10 @@ To combine both sides manually:
    keep. Lines marked as something remote can't resolve need the manual
    approach. Conflicts involving directories
    are rejected by checkout and apply; report these to the user. So are
+   repository conflicts, in Git mode, where both sides committed and neither
+   commit contains the other: on one side, run `git reset` to the other side's
+   commit that the listing prints (it keeps every file) and commit again,
+   after asking the user if the commits matter to them. So are
    conflicts between the commits of a submodule, in Git mode: tell the user to
    check out the same commit on both sides, or to delete the submodule on the
    side to discard, which then gets a clone of the other side's. Once the
