@@ -69,9 +69,15 @@ session (not per endpoint) and implies `ignore.vcs: true`; combining it with
   own copy, so put shared ignores in `.gitignore`: `.git/info/exclude` exists
   only where the repository does. `ignore.paths` takes precedence, so
   `!.env` synchronizes a file that `.gitignore` ignores. `.git` entries (files
-  too) are never synchronized and can't be unignored, so the other side has no
-  superproject repository. Rules follow Git 2.52 and later; older versions of
-  Git treat patterns like `foo**/bar` differently.
+  too) are never synchronized as files and can't be unignored. Rules follow
+  Git 2.52 and later; older versions of Git treat patterns like `foo**/bar`
+  differently.
+- **The root repository**: every endpoint has it at the same commit and
+  branch, so `git` works on each; an endpoint without one gets it, with the
+  other's history, and commits are copied by Mutagen, so they needn't be
+  pushed. Both systems need `git` 2.29 or later. If both commit and neither
+  commit contains the other, `remote --conflicts` lists a repository conflict
+  until one side runs `git reset` to the other's commit and commits again.
 - **What an endpoint receives**: an endpoint applies its own rules here too,
   including to paths that it doesn't have yet. An excluded path isn't written
   and is reported as a warning, while the rest of its directory still arrives,

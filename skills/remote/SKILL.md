@@ -66,10 +66,11 @@ commands that `remote` suggests include it.
   `git describe --dirty` rewrite a synced `.git/index`, so compute Git state
   locally and pass it in:
   `remote -e GIT_REV="$(git describe --always --dirty)" python train.py`.
-  A Git-mode session never synchronizes `.git`, so the other side usually has
-  no repository for the project to run `git` in, while each submodule has its
-  own on each side, which follows the other side's commit once it's pushed. See
-  "Git on the other side" in [troubleshooting.md](references/troubleshooting.md).
+  A Git-mode session never synchronizes `.git` as files, so this doesn't
+  apply there: each side has the project's repository at the same commit and
+  branch, with its own index, and `git` works on both. Commit on one side at a
+  time; the other side follows. See "Git on the other side" in
+  [troubleshooting.md](references/troubleshooting.md).
 
 `remote --help` lists the options and help topics of the installed `remote`.
 If it lacks an option described here, that `remote` is older than this skill:
