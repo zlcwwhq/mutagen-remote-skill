@@ -235,9 +235,31 @@ as `.remote-prologue.sh`, instead of alpha/beta roles.
 
 `star.remote: true` explicitly authorizes commands between the center and every
 other node, in both directions. It defaults to false regardless of pair
-defaults. Confirm this authorization, and the choice of center, in the setup
-plan. Configure daemon connectivity to each endpoint; nodes needn't reach each
-other.
+defaults. On versions whose `remote --help nodes` says that a node's own remote
+setting takes precedence, a non-center node can set `remote: false` or
+`remote: true` for its own edge, in both directions, so that only some nodes
+get commands, such as to keep a shared machine from running the center's
+commands or reaching the center:
+
+```yaml
+star:
+  remote: true
+  center: local
+  nodes:
+    local:
+      endpoint: "."
+    gpu:
+      endpoint: "gpu:~/project"
+    shared:
+      endpoint: "shared:~/project"
+      remote: false
+```
+
+Such a node's edge still synchronizes, and `remote --nodes` lists the node as
+unavailable. `remote` can't be set on the center, and changing a node's
+`remote` replaces only its own edge. Confirm this authorization, which nodes
+get it, and the choice of center, in the setup plan. Configure daemon
+connectivity to each endpoint; nodes needn't reach each other.
 
 After previewing and applying the project, run from the center's directory:
 
