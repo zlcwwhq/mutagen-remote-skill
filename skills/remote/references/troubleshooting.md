@@ -31,7 +31,7 @@ so the status alone cannot always identify whether remote failed.
 | `ambiguous source node` (125) | Independent workspaces overlap, or outside roots there is more than one source | Enter an unambiguous source root; ask for a star configuration if pairs share a root |
 | `multiple destination nodes` (125) | The center of a star with several other nodes was given no `--node`; offline nodes count | Choose explicitly with `--node NAME` |
 | `unknown node` (125) / `node ... unavailable` (255) | The name isn't configured, or its edge was terminated, or the edge isn't connected at both ends, such as while it reconnects (`isn't connected for remote commands at the center`) | Inspect `--nodes`; correct the name, retry after a few seconds if the edge is reconnecting, or ask the user to restore the reported edge |
-| `node ... unavailable: command execution is disabled there by the session's remote setting` (125) | The `remote` setting of the session joining the node (`--nodes` shows it as unavailable) doesn't let it execute commands | Don't retry; tell the user that the session's `remote` setting must include that node |
+| `node ... unavailable: command execution is disabled there by the session's remote setting` (125) | The `remote` setting of the session joining the node (`--nodes` shows it as unavailable) doesn't let it execute commands | Don't retry; tell the user that the session's `remote` setting must include that node (in a star, `star.remote` or the node's own `remote`) |
 | `stars have no multi-hop: node X is reachable only from the center node C` (125) | A star's non-center node reaches only the center | Run the command from the center C, or tell the user that it needs to run there (see [nodes.md](nodes.md#stars)) |
 | `operations from the center node C are unavailable until the star is repaired` (125) | The star's loaded sessions disagree on the center's endpoint, which the daemon refuses when creating edges; `--nodes` shows it as `Star problem:` | Tell the user the problem; terminating the edge that disagrees and applying the project again repairs it. Operations already in progress continue, and other nodes keep reaching the center meanwhile (see [nodes.md](nodes.md#star-problems)) |
 | `node graph changed after target selection` (125) | The selected node's edge was replaced or removed, such as by applying the project, between the target's selection and a later step of the same operation; changes to other edges don't cause it | Query `remote --nodes` again, and check the target's state before rerunning the operation |
@@ -42,7 +42,7 @@ so the status alone cannot always identify whether remote failed.
 | `session ... is no longer connected for remote commands on this system` (255) | The session paused, reconnected, or was terminated after `remote` located it; `remote` doesn't switch to another session midway | Retry after a few seconds; if it persists, tell the user |
 | `the connection to the executing endpoint was lost ...` (255) | The session stopped synchronizing while the command ran (paused, reconnecting, replaced, or the daemon stopped), so the command was terminated: SIGTERM, then SIGKILL 5 seconds later | Files that it was writing may be incomplete. Once `remote --flush` succeeds, check them and rerun the command; run long commands with `--detach`. If it recurs, tell the user |
 | `registered by Mutagen X, but this is Mutagen Y` (255) | `remote` from a different Mutagen version, such as a `PATH` entry for an older agent after an upgrade | Use the `remote` installed with version X (on SSH and Docker endpoints, `~/.mutagen/agents/X/remote`); tell the user that the `setup` skill installs a `remote` that follows upgrades |
-| `warning: unable to synchronize before/after the command` | The session stopped synchronizing during a flush, or `--timeout` expired | The command still ran; retry with `remote --flush`, and tell the user if it keeps failing |
+| `warning: unable to synchronize before/after the command` (or `after the job` from `--wait`) | The session stopped synchronizing during a flush, or `--timeout` expired | The command or job still ran, and its own status is reported; retry with `remote --flush`, and tell the user if it keeps failing |
 | `synchronization stopped before the flush completed` (255 with `--flush`) | Same as above | Same as above |
 | `unable to find command` (127) | Not on the remote `PATH` | See "Commands missing from the remote environment" |
 | `remote: prologue <path> failed with exit status N` (126) | The prologue returned non-zero, had a syntax error, or exited | Inspect with `remote --no-prologue cat <path>`; repair a workspace override locally, preserving existing setup |
@@ -54,7 +54,6 @@ so the status alone cannot always identify whether remote failed.
 | `job <id> was started at another synchronization root` (125) | The job belongs to another workspace's root on that system | Run from inside the workspace that started it, with the same `--node` |
 | `job <id> ended without recording its exit status` (125 from `--wait`) | The job was killed with SIGKILL outside `remote`, or its system or container restarted | Read its log (shown by `remote --jobs`) and rerun it if needed; if jobs keep ending this way, see "Detached jobs" |
 | `remote: job <id> is still running` after `timed out` (124 from `--wait`) | `--timeout` expired; the job wasn't affected. With `--tail N`, the last N lines so far were printed first | Wait or poll again, or `remote --kill <id>` |
-| `warning: unable to follow the log of job <id>: the executing endpoint doesn't support following logs` | The other side runs an older Mutagen | The wait continues (with `--tail N`, the last N lines are printed at the end); read progress with `remote --no-flush tail -n 40 <log>` and tell the user an upgrade adds `--follow` |
 | `warning: unable to follow the log of job <id>: ... is not a regular file` / `no such file or directory` / `was replaced since remote last read it` | The job logs to `/dev/null` or a device, or its log was deleted or replaced | Nothing; the wait continues and reports the job's status |
 | `warning: the log of job <id> became shorter than the N bytes followed so far` | The log was truncated, such as by log rotation or another job started with the same `--log` | Following restarts at the log's beginning; check `remote --jobs` for another job writing the same log |
 | `--timeout can't be combined with --detach` (125) | `--detach` returns as soon as the job starts | Limit the job itself: `remote --detach timeout 2h python train.py` |
@@ -387,10 +386,12 @@ synchronizes `.git` as files, so the index problem below doesn't arise:
   in it on both sides. When one side checks out another commit, the other moves
   its detached `HEAD` there without touching files, fetching the commit from
   the origin in the background if it has to (it needs `git`, network access,
-  and read access to the repository). Until a commit is pushed, the other
-  side's `HEAD` stays behind and `remote` warns, but the files still arrive, so
-  commands see them; only `git` there reports another commit and changes. Tell
-  the user if Git state matters there, and never push for them without asking.
+  and read access to the repository). Staged changes there stay staged where
+  Git can keep them; otherwise `remote` warns that they were unstaged. Until a
+  commit is pushed, the other side's `HEAD` stays behind and `remote` warns,
+  but the files still arrive, so commands see them; only `git` there reports
+  another commit and changes. Tell the user if Git state matters there, and
+  never push for them without asking.
   `HEAD` also waits, with a warning, while a Git operation is in progress on
   that side, such as a merge, a rebase, or a commit whose message is being
   edited, and follows once it's finished or aborted.

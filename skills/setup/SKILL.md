@@ -120,7 +120,8 @@ ignores, prologues, several sessions, and star workspaces. For three or more
 workspaces with named command targets, use its star configuration: one daemon
 manages the star, whose center reaches every other node, and
 `star.remote: true` grants execution between the center and every other
-node. Confirm the center and this command authorization with the user. If an
+node that doesn't set its own `remote`. Confirm the center and which nodes get
+this command authorization with the user. If an
 existing `mutagen.yml` declares `tree:`, migrate it as
 [configuration.md](references/configuration.md#migrating-from-workspace-trees)
 describes.
