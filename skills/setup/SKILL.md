@@ -119,10 +119,11 @@ selects nodes, exposing an ordinary pair as `alpha` and `beta`.
 ignores, prologues, several sessions, and star workspaces. For three or more
 workspaces with named command targets, use its star configuration: one daemon
 manages the star, whose center reaches every other node, and
-`star.remote: true` grants execution between the center and every other
-node that doesn't set its own `remote`. Confirm the center and which nodes get
-this command authorization with the user. If an
-existing `mutagen.yml` declares `tree:`, migrate it as
+`star.remote: true` grants execution on the nodes that don't set their own
+`remote`; which nodes can set it, and in which direction it applies, depends on
+the version (see [configuration.md](references/configuration.md#star-workspaces)).
+Confirm the center and which nodes get this command authorization with the
+user. If an existing `mutagen.yml` declares `tree:`, migrate it as
 [configuration.md](references/configuration.md#migrating-from-workspace-trees)
 describes.
 
