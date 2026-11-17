@@ -233,13 +233,28 @@ which `star.sync` can't set either. Set each node's prologue on the node,
 including the center's, and use `MUTAGEN_REMOTE_NODE` in shared scripts, such
 as `.remote-prologue.sh`, instead of alpha/beta roles.
 
-`star.remote: true` explicitly authorizes commands between the center and every
-other node, in both directions. It defaults to false regardless of pair
-defaults. On versions whose `remote --help nodes` says that a node's own remote
-setting takes precedence, a non-center node can set `remote: false` or
-`remote: true` for its own edge, in both directions, so that only some nodes
-get commands, such as to keep a shared machine from running the center's
-commands or reaching the center:
+`star.remote: true` explicitly authorizes command execution on the star's
+nodes. It defaults to false regardless of pair defaults. What nodes can set
+depends on the installed version's `remote --help nodes`:
+
+- If it says that each node's remote setting, including the center's, decides
+  whether it executes commands, then every node, the center included, can set
+  `remote: true` or `remote: false`, which takes precedence over
+  `star.remote`. The center executes commands from every other node, and
+  every other node executes commands from the center. A node that doesn't
+  execute commands can still run them on an executing center, so to keep a
+  node from reaching the center, the center must set `remote: false`, which
+  applies to every node. Changing the center's `remote` replaces every edge.
+- If it says that a node's own remote setting takes precedence for its edge,
+  in both directions (0.4.0), then a non-center node's `remote` enables or
+  disables commands on its own edge both ways, and the center can't set it.
+- Otherwise, `star.remote` authorizes commands between the center and every
+  other node, in both directions, and nodes can't set `remote`.
+
+The same file authorizes different things in these versions, so check the
+installed version before relying on a node's `remote`. On the newest versions,
+for example, this lets the center run commands on `gpu` but not on `shared`,
+and keeps both nodes from running commands on the center:
 
 ```yaml
 star:
@@ -248,6 +263,7 @@ star:
   nodes:
     local:
       endpoint: "."
+      remote: false
     gpu:
       endpoint: "gpu:~/project"
     shared:
@@ -255,11 +271,11 @@ star:
       remote: false
 ```
 
-Such a node's edge still synchronizes, and `remote --nodes` lists the node as
-unavailable. `remote` can't be set on the center, and changing a node's
-`remote` replaces only its own edge. Confirm this authorization, which nodes
-get it, and the choice of center, in the setup plan. Configure daemon
-connectivity to each endpoint; nodes needn't reach each other.
+A node that doesn't execute commands still synchronizes, and `remote --nodes`
+lists it as unavailable. Changing a node's `remote` replaces only its own edge.
+Confirm this authorization, which nodes get it, and the choice of center, in the
+setup plan. Configure daemon connectivity to each endpoint; nodes needn't reach
+each other.
 
 After previewing and applying the project, run from the center's directory:
 
