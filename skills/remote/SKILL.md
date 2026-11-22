@@ -8,18 +8,20 @@ description: Run commands on the other side of a Mutagen synchronization session
 Use `remote --nodes` to discover the current workspace's nodes and whether
 each is available, then `remote --node <name> <command> [args...]` to run on the
 chosen node in the corresponding directory. Omit the name only when there is
-exactly one other node. Ordinary pairs expose `alpha` and `beta`; declared
+exactly one other node, or to select a star's center from another node.
+Ordinary pairs expose `alpha` and `beta`; declared
 stars use their configured names. Use only `remote`: endpoint systems may
 lack the `mutagen` CLI. Setup and topology changes belong to the `setup` skill.
 
-In a star, the center reaches every node, while every other node reaches only
-the center: from a non-center node, plain `remote <command>` runs on the
-center, and selecting another node fails with 125 (no multi-hop), so run such
-commands from the center. Read [nodes.md](references/nodes.md) for stars and
-star problems. `--nodes` is read-only; availability is not a synchronization
-guarantee. `--session`, `-s`, `--sessions`, and the exported
-`MUTAGEN_REMOTE_SESSION` are deprecated and rejected; unset the variable and
-select nodes explicitly. Check the installed `remote --help` before using new
+In a star, the center reaches every node, and every other node reaches the
+center and, through it, the other nodes: from a non-center node, plain
+`remote <command>` runs on the center, and `remote --node <name>` on another
+node, synchronizing both nodes' edges. Conflict listing and resolution for
+another node's edge fail with 125 there; run them from the center. Read
+[nodes.md](references/nodes.md) for stars and star problems. `--nodes` is
+read-only; availability is not a synchronization guarantee. `--session`,
+`-s`, `--sessions`, and the exported `MUTAGEN_REMOTE_SESSION` are deprecated
+and rejected; unset the variable and select nodes explicitly. Check the installed `remote --help` before using new
 options. Add the same `--node` to subsequent job and file operations; the
 commands that `remote` suggests include it.
 

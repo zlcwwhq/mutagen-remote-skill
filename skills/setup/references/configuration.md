@@ -194,8 +194,10 @@ star:
 
 `center` is required and names one of the nodes, and there must be at least one
 other node. Any node can be the center, with any endpoint type, but only the
-center reaches every node with `remote`; every other node reaches only the
-center. Choose the center with the user: usually where they work and their
+center reaches every node with `remote` over a single edge; every other node
+reaches the center, and, in versions whose `remote --help nodes` says so, the
+other nodes through the center, over both nodes' edges. Choose the center with
+the user: usually where they work and their
 agents run, such as the project directory on the daemon's system. A center on
 another system works too; the daemon then relays its edges as it relays a pair
 whose endpoints are both remote. Node names start with an ASCII letter,
@@ -237,14 +239,28 @@ as `.remote-prologue.sh`, instead of alpha/beta roles.
 nodes. It defaults to false regardless of pair defaults. What nodes can set
 depends on the installed version's `remote --help nodes`:
 
+- If it mentions `remoteSubmit`, then every node, the center included, can set
+  `remote: true` or `remote: false`, which decides whether it executes
+  commands from the nodes that reach it, and `remoteSubmit: true` or
+  `remoteSubmit: false`, which decides whether commands may be submitted from
+  it; each takes precedence over `star.remote` and `star.remoteSubmit`, and
+  `star.remoteSubmit` defaults to true. Nodes other than the center reach each
+  other through the center, so a node runs commands on another if it may
+  submit commands and the other executes them, whatever the center's
+  settings. To keep a node from running commands anywhere, set its
+  `remoteSubmit: false`; every node that executes commands accepts them from
+  every node that may submit them, so confirm both lists with the user.
+  Changing the center's `remote` replaces every edge, and its `remoteSubmit`
+  the edges of executing nodes.
 - If it says that each node's remote setting, including the center's, decides
-  whether it executes commands, then every node, the center included, can set
-  `remote: true` or `remote: false`, which takes precedence over
-  `star.remote`. The center executes commands from every other node, and
-  every other node executes commands from the center. A node that doesn't
-  execute commands can still run them on an executing center, so to keep a
-  node from reaching the center, the center must set `remote: false`, which
-  applies to every node. Changing the center's `remote` replaces every edge.
+  whether it executes commands, without `remoteSubmit` (0.5.0), then every
+  node, the center included, can set `remote: true` or `remote: false`, which
+  takes precedence over `star.remote`. The center executes commands from every
+  other node, and every other node executes commands from the center. A node
+  that doesn't execute commands can still run them on an executing center, so
+  to keep a node from reaching the center, the center must set
+  `remote: false`, which applies to every node. Changing the center's `remote`
+  replaces every edge.
 - If it says that a node's own remote setting takes precedence for its edge,
   in both directions (0.4.0), then a non-center node's `remote` enables or
   disables commands on its own edge both ways, and the center can't set it.
@@ -252,9 +268,11 @@ depends on the installed version's `remote --help nodes`:
   other node, in both directions, and nodes can't set `remote`.
 
 The same file authorizes different things in these versions, so check the
-installed version before relying on a node's `remote`. On the newest versions,
-for example, this lets the center run commands on `gpu` but not on `shared`,
-and keeps both nodes from running commands on the center:
+installed version before relying on a node's `remote`. On 0.5.0 and later, for
+example, this lets the center run commands on `gpu` but not on `shared`, and
+keeps both nodes from running commands on the center; with `remoteSubmit`, it
+also lets `shared` run commands on `gpu` through the center (add
+`remoteSubmit: false` to `shared` to prevent that):
 
 ```yaml
 star:
@@ -272,7 +290,9 @@ star:
 ```
 
 A node that doesn't execute commands still synchronizes, and `remote --nodes`
-lists it as unavailable. Changing a node's `remote` replaces only its own edge.
+lists it as unavailable. Changing a node's `remote` replaces only its own edge,
+except that, with `remoteSubmit`, if the center doesn't execute commands, it
+can also replace the edges of nodes for which it's the only executing node.
 Confirm this authorization, which nodes get it, and the choice of center, in the
 setup plan. Configure daemon connectivity to each endpoint; nodes needn't reach
 each other.
@@ -284,10 +304,11 @@ remote --nodes
 remote --node gpu --timeout 30s pwd
 ```
 
-Every command crosses one edge and behaves as for a pair: the edge is flushed
-before and after it, and conflicts produce warnings rather than preventing it.
-From another node, `remote pwd` runs on the center, and commands for another
-non-center node fail with 125, since stars have no multi-hop routes. If
+A command on or from the center crosses one edge and behaves as for a pair:
+the edge is flushed before and after it, and conflicts produce warnings rather
+than preventing it. From another node, `remote pwd` runs on the center; with
+`remoteSubmit`, `remote --node <node> pwd` runs on another node through the
+center, flushing both edges, while older versions refuse it with 125. If
 `remote --nodes` reports a star problem, the star's loaded edges disagree on
 the center's endpoint, which the daemon refuses when creating edges: with the
 user's consent, terminate the edge that disagrees and apply the project again.

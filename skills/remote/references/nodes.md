@@ -30,26 +30,44 @@ and migrate selectors to `--node`. Session identifiers stay internal.
 ## Stars
 
 A star joins its center to every other node, each by its own synchronization
-session, called an edge. Only the center reaches every node:
+session, called an edge:
 
 - From the center, `--node` selects any node. It can be omitted only if the
   star has a single other node.
-- From any other node, the center is the only destination, so omit `--node`
-  or name the center. Selecting another node fails with 125 and
-  `stars have no multi-hop`, naming the center. Run such commands from the
-  center, or tell the user that the command needs to run there.
+- From any other node, omit `--node` (or name the center) to run on the
+  center, or name another node to run on it through the center. `--nodes`
+  lists such nodes with the center in their `path` (`through <center>` in text
+  output).
 
-Every operation crosses exactly one edge, which is an ordinary pair session,
-and behaves as for a pair: the edge is flushed before and after commands,
-conflicts produce warnings rather than preventing commands, and detached jobs,
-`--no-flush`, `--flush`, `--pull`, `--diff`, `--ignores`, `--progress`, and
-conflict resolution work as they do for pairs. An operation depends only on
-its own edge: pausing, replacing, removing, or adding other nodes doesn't
-affect it, and no operation uses another edge. While a node's edge isn't
-connected at the center, such as while it reconnects, `--nodes` shows the node
-as unavailable and operations on it fail with 255; retry after a few seconds.
+An operation on the center, or from it, crosses one edge, which is an ordinary
+pair session, and behaves as for a pair: the edge is flushed before and after
+commands, conflicts produce warnings rather than preventing commands, and
+detached jobs, `--no-flush`, `--flush`, `--pull`, `--diff`, `--ignores`,
+`--progress`, and conflict resolution work as they do for pairs. An operation
+depends only on its own edges: pausing, replacing, removing, or adding other
+nodes doesn't affect it. While a node's edge isn't connected at the center,
+such as while it reconnects, `--nodes` on the center shows the node as
+unavailable and operations on it fail with 255; retry after a few seconds.
 Keep the same `--node` for a job's start, wait, and kill, and for every
 conflict operation.
+
+An operation from one non-center node on another crosses both of their edges,
+through the center:
+
+- Before a command, the submitting node's edge is flushed and then the
+  destination's; after it, the reverse, so the command sees local changes and
+  its changes come back. `--wait` flushes as after a command, and `--flush`
+  without a command does both, so it also fetches a finished job's files.
+  Warnings name the edge they come from (`on the edge to the center <name>`
+  or `on <node>'s edge with the center <name>`).
+- Jobs, `--no-flush`, `--pull`, `--diff`, and `--ignores` work as on the
+  center. Conflict operations fail with 125 and name where to run them: list
+  and resolve the destination edge's conflicts from the center
+  (`remote --node <name> --conflicts`) or tell the user, and this node's own
+  edge's conflicts with plain `remote --conflicts`.
+- One-way edges flow from the center only: a one-way submitting node's
+  changes don't reach the destination, and a one-way destination's changes
+  don't come back.
 
 - Each non-center node's mode configures its own edge, shown by `--nodes`.
   The center is alpha on every edge, so it wins conflicts in
@@ -73,9 +91,9 @@ conflict operation.
 
 If `--nodes` prints `Star problem:` (JSON `problem`), the star's loaded
 sessions disagree on the center's endpoint; the daemon refuses to create such
-edges. Every new operation from the center then fails with 125, whatever the
-target, while operations already in progress and the other nodes keep using
-their own edges. Don't retry: tell the user the reported problem; terminating
-the edge that disagrees and applying the project again repairs it. A
-terminated edge only removes its node: `--nodes` no longer lists it, and
-selecting it fails as an unknown node.
+edges. Every new operation from or through the center then fails with 125,
+whatever the target, while operations already in progress and the other nodes'
+operations on the center keep using their own edges. Don't retry: tell the user
+the reported problem; terminating the edge that disagrees and applying the
+project again repairs it. A terminated edge only removes its node: `--nodes` no
+longer lists it, and selecting it fails as an unknown node.

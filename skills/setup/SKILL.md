@@ -120,10 +120,12 @@ ignores, prologues, several sessions, and star workspaces. For three or more
 workspaces with named command targets, use its star configuration: one daemon
 manages the star, whose center reaches every other node, and
 `star.remote: true` grants execution on the nodes that don't set their own
-`remote`; which nodes can set it, and in which direction it applies, depends on
-the version (see [configuration.md](references/configuration.md#star-workspaces)).
-Confirm the center and which nodes get this command authorization with the
-user. If an existing `mutagen.yml` declares `tree:`, migrate it as
+`remote`; which nodes can set it, in which direction it applies, whether nodes
+reach each other through the center, and whether `remoteSubmit` limits which
+nodes submit commands, depend on the version (see
+[configuration.md](references/configuration.md#star-workspaces)). Confirm the
+center, which nodes execute commands, and which nodes may submit them with
+the user. If an existing `mutagen.yml` declares `tree:`, migrate it as
 [configuration.md](references/configuration.md#migrating-from-workspace-trees)
 describes.
 
@@ -139,8 +141,8 @@ mutagen project list              # status, conflicts, and problems
 ```
 
 `apply` keeps unchanged sessions and recreates changed ones, including for
-changes to `remote`, `remotePrologue`, or `git` (to move a session from
-`ignore.vcs` to Git mode, see
+changes to `remote`, `remoteSubmit`, `remotePrologue`, or `git` (to move a
+session from `ignore.vcs` to Git mode, see
 [configuration.md](references/configuration.md#git-mode)). Recreated sessions
 lose their synchronization history, so the plan's replacements behave like a
 first synchronization (step 4): before applying them, have the user stop
@@ -154,7 +156,8 @@ another system, check there once `remote` is installed (step 7), as with
 `ssh <host> 'cd <path> && "$SHELL" -lc "remote --nodes"'`. Then verify
 execution with `remote --node <name> pwd`.
 For an ordinary pair the destination from alpha is `beta`; a star uses its
-configured names, and other nodes reach only its center. The execution check
+configured names, and other nodes reach its center (and, in versions whose
+`remote --help nodes` says so, each other through it). The execution check
 performs synchronization, so don't confuse it with discovery or automatically
 retry commands with side effects.
 
